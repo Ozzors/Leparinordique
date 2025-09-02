@@ -2,5 +2,5 @@ le-pari-nordique-app/
 ├── app.py
 ├── editions.csv
 ├── requirements.txt
-└── images/
+└── assets/
     └── logo.png
