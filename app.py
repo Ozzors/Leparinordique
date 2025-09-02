@@ -1,10 +1,9 @@
 # Le Pari Nordique — Streamlit app with local editor + GitHub-backed CSV storage
 # Features:
-# - Banner with local logo
-# - Sidebar with logo
-# - "Admin" tab with password-protected editor
-# - Saves editions.csv to GitHub or local
+# - "Admin" tab with password-protected editor to create/save editions
+# - Saves editions.csv to GitHub using the GitHub Contents API
 # - "Record" tab showing history + download buttons
+# - Fallback to local editions.csv when GitHub is not configured
 
 import os
 import base64
@@ -18,12 +17,11 @@ import requests
 import streamlit as st
 
 # ----------------------------- PAGE CONFIG & THEME ---------------------------
-st.set_page_config(page_title="Le Pari Nordique – Newsletter (Admin)", page_icon="🏅", layout="wide")
-
-# ----------------------------- BANNER / LOGO -----------------------------
-st.image("assets/logo.png", width=200)  # Cabecera principal
-st.markdown("<h1 style='text-align: center; color: gold;'>Le Pari Nordique</h1>", unsafe_allow_html=True)
-st.markdown("---")
+st.set_page_config(
+    page_title="Le Pari Nordique – Newsletter (Admin)",
+    page_icon="🏅",
+    layout="wide"
+)
 
 PRIMARY = "#0EA5E9"
 ACCENT = "#F59E0B"
@@ -75,7 +73,7 @@ GITHUB_PATH = st.secrets.get("GITHUB_PATH", "editions.csv").strip()
 GITHUB_BRANCH = st.secrets.get("GITHUB_BRANCH", "main").strip()
 ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", "").strip()
 
-LOCAL_CSV = "editions.csv"  # fallback
+LOCAL_CSV = "editions.csv"
 
 # ----------------------------- GITHUB HELPERS --------------------------------
 def _gh_headers(token: str) -> dict:
@@ -144,7 +142,7 @@ def load_editions_from_github() -> Tuple[pd.DataFrame, Optional[str]]:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
     except Exception:
         pass
-    df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])    
+    df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])
     df = df.sort_values("date", ascending=False, na_position="last").reset_index(drop=True)
     return df, sha
 
@@ -159,7 +157,7 @@ def load_editions_local() -> pd.DataFrame:
                 df["date"] = pd.to_datetime(df["date"], errors="coerce")
             except Exception:
                 pass
-            df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])    
+            df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])
             return df.sort_values("date", ascending=False, na_position="last").reset_index(drop=True)
         except Exception as e:
             st.error(f"Failed to read local CSV: {e}")
@@ -176,13 +174,10 @@ def save_editions_local(df: pd.DataFrame):
 
 # ----------------------------- SIDEBAR --------------------------------------
 with st.sidebar:
-    st.image("assets/logo.png", width=150)  # Logo en sidebar
     st.markdown("<div class='kicker'>Newsletter</div>", unsafe_allow_html=True)
     st.title("Le Pari Nordique 🏅")
     st.caption("Admin editor — saves to GitHub or local CSV")
-
     lang = st.radio("Language / Langue", options=["fr", "en"], index=1, format_func=lambda x: "Français" if x == "fr" else "English")
-
     if st.button("Refresh data", use_container_width=True):
         load_editions_from_github.clear()
 
@@ -198,10 +193,10 @@ else:
 st.caption(f"Source: {source}")
 st.caption(f"{I18N[lang]['last_sync']}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# ----------------------------- TABS -----------------------------------------
+# ----------------------------- TABS: VIEW / ADMIN / RECORD -------------------
 tabs = st.tabs([I18N[lang]['latest'], "Admin", "Record"])
 
-# --- TAB 1: Latest (read-only)
+# ---------- TAB 1: Latest (read-only) -------------------------------------
 with tabs[0]:
     st.subheader(I18N[lang]["latest"])
     if df.empty:
@@ -209,7 +204,7 @@ with tabs[0]:
     else:
         dfx = df[(df["published"] == True) & (df["language"].str.lower() == lang)].copy()
         if dfx.empty:
-            st.info(I18N[lang]["empty"]) 
+            st.info(I18N[lang]["empty"])
         else:
             latest = dfx.iloc[0]
             c1, c2 = st.columns([3, 1])
@@ -223,7 +218,7 @@ with tabs[0]:
                 st.metric("ID", str(latest.get("edition_id", "-")))
                 st.metric(I18N[lang]["published"], "✅")
 
-# --- TAB 2: Admin
+# ---------- TAB 2: Admin (password + editor) -------------------------------
 with tabs[1]:
     st.subheader("Admin — Create / Edit editions")
     if not ADMIN_PASSWORD:
@@ -233,6 +228,7 @@ with tabs[1]:
     if ADMIN_PASSWORD and pw != ADMIN_PASSWORD:
         st.info("Enter admin password to unlock editor (password provided in Streamlit secrets).")
     else:
+        # Editor form
         with st.form("editor_form"):
             col1, col2 = st.columns([1, 3])
             with col1:
@@ -255,12 +251,16 @@ with tabs[1]:
                 "content_md": content_field,
                 "published": str(bool(published_field)).upper(),
             }
+
             if df is None or df.empty:
                 new_df = pd.DataFrame([new_row])
             else:
                 new_df = pd.concat([pd.DataFrame([new_row]), df], ignore_index=True)
+
+            # Save locally always
             save_editions_local(new_df)
 
+            # Save to GitHub if configured
             if GITHUB_TOKEN and GITHUB_REPO:
                 with st.spinner("Saving to GitHub..."):
                     res = save_editions_to_github(new_df, gh_sha)
@@ -271,9 +271,9 @@ with tabs[1]:
                     else:
                         st.error("No se pudo guardar en GitHub — revisa los logs y secretos.")
             else:
-                st.success("Edition guardada localmente (editions.csv).")
+                st.success("Edition guardada localmente (editions.csv). Considera configurar GitHub para persistencia remota.")
 
-# --- TAB 3: Record
+# ---------- TAB 3: Record (history + downloads) ----------------------------
 with tabs[2]:
     st.subheader("Record — All editions")
     if df.empty:
@@ -283,12 +283,15 @@ with tabs[2]:
         dfa = df.copy()
         if q:
             ql = q.lower().strip()
-            dfa = dfa[dfa["title"].astype(str).str.lower().str.contains(ql) | dfa["content_md"].astype(str).str.lower().str.contains(ql)]
-
+            dfa = dfa[dfa["title"].astype(str).str.lower().str.contains(ql) |
+                      dfa["content_md"].astype(str).str.lower().str.contains(ql)]
         st.dataframe(dfa.reset_index(drop=True))
+
+        # Download filtered CSV
         csv_bytes = dfa.to_csv(index=False).encode("utf-8")
         st.download_button("Download CSV (filtered)", csv_bytes, file_name="editions_export.csv", mime="text/csv")
 
+        # Download single edition markdown
         sel = st.selectbox("Download single edition (ID)", options=list(dfa["edition_id"].astype(str)), index=0)
         if sel:
             sel_row = dfa[dfa["edition_id"].astype(str) == sel].iloc[0]
