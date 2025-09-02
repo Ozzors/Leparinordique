@@ -3,4 +3,10 @@ le-pari-nordique-app/
 ├── editions.csv
 └── assets/
     └── logo.png
+# Cabecera principal
+st.image("assets/logo.png", width=200)
+
+# Sidebar
+with st.sidebar:
+    st.image("assets/logo.png", width=150)
 
