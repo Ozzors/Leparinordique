@@ -20,6 +20,11 @@ import streamlit as st
 # ----------------------------- PAGE CONFIG & THEME ---------------------------
 st.set_page_config(page_title="Le Pari Nordique – Newsletter (Admin)", page_icon="🏅", layout="wide")
 
+# ----------------------------- BANNER / LOGO -----------------------------
+st.image("https://i.imgur.com/1YQwVZB.png", width=200)  # Logo Le Pari Nordique
+st.markdown("<h1 style='text-align: center; color: gold;'>Le Pari Nordique</h1>", unsafe_allow_html=True)
+st.markdown("---")
+
 PRIMARY = "#0EA5E9"
 ACCENT = "#F59E0B"
 CUSTOM_CSS = f"""
@@ -64,13 +69,6 @@ I18N = {
 }
 
 # ----------------------------- CONFIG: GitHub / Local -------------------------
-# Put these values in Streamlit secrets or .streamlit/secrets.toml
-# GITHUB_TOKEN -> personal access token with repo write access (or fine-grained token)
-# GITHUB_REPO  -> owner/repo (e.g. "oswaldog/le-pari-nordique-data")
-# GITHUB_PATH  -> path to CSV inside the repo (e.g. "editions.csv")
-# GITHUB_BRANCH -> optional (default: main)
-# ADMIN_PASSWORD -> simple password to access the admin editor
-
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "").strip()
 GITHUB_REPO = st.secrets.get("GITHUB_REPO", "").strip()
 GITHUB_PATH = st.secrets.get("GITHUB_PATH", "editions.csv").strip()
@@ -80,13 +78,10 @@ ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", "").strip()
 LOCAL_CSV = "editions.csv"  # local fallback
 
 # ----------------------------- GITHUB HELPERS --------------------------------
-
 def _gh_headers(token: str) -> dict:
     return {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
 
-
 def github_get_file(repo: str, path: str, token: str, branch: str = "main") -> Tuple[Optional[bytes], Optional[str]]:
-    """Return (content_bytes, sha) or (None, None) if not found. Shows Streamlit error on other HTTP errors."""
     if not (repo and token):
         return None, None
     url = f"https://api.github.com/repos/{repo}/contents/{path}"
@@ -105,9 +100,7 @@ def github_get_file(repo: str, path: str, token: str, branch: str = "main") -> T
         st.error(f"GitHub API error: {r.status_code} — {r.text}")
         return None, None
 
-
 def github_put_file(repo: str, path: str, token: str, content_bytes: bytes, message: str, sha: Optional[str] = None, branch: str = "main") -> Optional[dict]:
-    """Create or update a file via the GitHub Contents API. Returns response JSON on success."""
     if not (repo and token):
         st.error("GitHub is not configured (missing token or repo).")
         return None
@@ -131,10 +124,8 @@ def github_put_file(repo: str, path: str, token: str, content_bytes: bytes, mess
         return None
 
 # ----------------------------- DATA LOADING / SAVING -------------------------
-
 @st.cache_data(ttl=30)
 def load_editions_from_github() -> Tuple[pd.DataFrame, Optional[str]]:
-    """Try loading editions.csv from GitHub; returns (df, sha) or (empty_df, None)."""
     if not (GITHUB_TOKEN and GITHUB_REPO):
         return pd.DataFrame(), None
     content, sha = github_get_file(GITHUB_REPO, GITHUB_PATH, GITHUB_TOKEN, branch=GITHUB_BRANCH)
@@ -145,7 +136,6 @@ def load_editions_from_github() -> Tuple[pd.DataFrame, Optional[str]]:
     except Exception as e:
         st.error(f"Failed to parse CSV from GitHub: {e}")
         return pd.DataFrame(), sha
-    # Normalize columns
     expected = ["edition_id", "date", "language", "title", "content_md", "published"]
     for col in expected:
         if col not in df.columns:
@@ -157,7 +147,6 @@ def load_editions_from_github() -> Tuple[pd.DataFrame, Optional[str]]:
     df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])    
     df = df.sort_values("date", ascending=False, na_position="last").reset_index(drop=True)
     return df, sha
-
 
 def load_editions_local() -> pd.DataFrame:
     if os.path.exists(LOCAL_CSV):
@@ -177,12 +166,10 @@ def load_editions_local() -> pd.DataFrame:
             return pd.DataFrame()
     return pd.DataFrame()
 
-
 def save_editions_to_github(df: pd.DataFrame, prev_sha: Optional[str]) -> Optional[dict]:
     csv_bytes = df.to_csv(index=False).encode("utf-8")
     message = f"Update editions.csv — {datetime.utcnow().isoformat()}"
     return github_put_file(GITHUB_REPO, GITHUB_PATH, GITHUB_TOKEN, csv_bytes, message, sha=prev_sha, branch=GITHUB_BRANCH)
-
 
 def save_editions_local(df: pd.DataFrame):
     df.to_csv(LOCAL_CSV, index=False)
@@ -259,7 +246,6 @@ with tabs[1]:
             submitted = st.form_submit_button("Save edition")
 
         if submitted:
-            # generate edition_id
             edition_id = f"{d.strftime('%Y%m%d')}-{language_field}-{int(time.time())}"
             new_row = {
                 "edition_id": edition_id,
@@ -269,21 +255,16 @@ with tabs[1]:
                 "content_md": content_field,
                 "published": str(bool(published_field)).upper(),
             }
-            # prepend (latest first)
             if df is None or df.empty:
                 new_df = pd.DataFrame([new_row])
             else:
                 new_df = pd.concat([pd.DataFrame([new_row]), df], ignore_index=True)
-            # save locally always
             save_editions_local(new_df)
-
-            # try saving to GitHub if configured
             if GITHUB_TOKEN and GITHUB_REPO:
                 with st.spinner("Saving to GitHub..."):
                     res = save_editions_to_github(new_df, gh_sha)
                     if res:
                         st.success("Edition guardada y subida a GitHub ✅")
-                        # update cache and local variables
                         load_editions_from_github.clear()
                         df, gh_sha = load_editions_from_github()
                     else:
@@ -305,11 +286,9 @@ with tabs[2]:
 
         st.dataframe(dfa.reset_index(drop=True))
 
-        # download full CSV
         csv_bytes = dfa.to_csv(index=False).encode("utf-8")
         st.download_button("Download CSV (filtered)", csv_bytes, file_name="editions_export.csv", mime="text/csv")
 
-        # allow download of single edition markdown
         sel = st.selectbox("Download single edition (ID)", options=list(dfa["edition_id"].astype(str)), index=0)
         if sel:
             sel_row = dfa[dfa["edition_id"].astype(str) == sel].iloc[0]
@@ -318,9 +297,4 @@ with tabs[2]:
 
 # ----------------------------- FOOTER --------------------------------------
 st.caption("© " + str(datetime.now().year) + " Le Pari Nordique — Built with Streamlit")
-
-# ----------------------------- NOTES ---------------------------------------
-# - To enable GitHub sync, set secrets: GITHUB_TOKEN, GITHUB_REPO, GITHUB_PATH (optional), GITHUB_BRANCH (optional), ADMIN_PASSWORD
-# - For local testing, create a local editions.csv with the header: edition_id,date,language,title,content_md,published
-# - Add 'requests' to requirements.txt for Streamlit Cloud
 
