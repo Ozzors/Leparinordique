@@ -1,1 +1,6 @@
+le-pari-nordique-app/
+├── app.py
+├── editions.csv
+└── assets/
+    └── logo.png
 
