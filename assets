@@ -1,12 +1,1 @@
-le-pari-nordique-app/
-├── app.py
-├── editions.csv
-└── assets/
-    └── logo.png
-# Cabecera principal
-st.image("assets/logo.png", width=200)
-
-# Sidebar
-with st.sidebar:
-    st.image("assets/logo.png", width=150)
 
