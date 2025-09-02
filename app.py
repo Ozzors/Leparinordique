@@ -1,15 +1,15 @@
 # Le Pari Nordique — Streamlit app with local editor + GitHub-backed CSV storage
-# Features added:
-# - "Admin" tab with password-protected editor to create/save editions
-# - Saves editions.csv to GitHub (create/update) using the GitHub Contents API
+# Features:
+# - Banner with local logo
+# - Sidebar with logo
+# - "Admin" tab with password-protected editor
+# - Saves editions.csv to GitHub or local
 # - "Record" tab showing history + download buttons
-# - Fallback to local `editions.csv` when GitHub is not configured
 
 import os
 import base64
 import io
 import time
-import uuid
 from datetime import datetime, date
 from typing import Optional, Tuple
 
@@ -21,7 +21,7 @@ import streamlit as st
 st.set_page_config(page_title="Le Pari Nordique – Newsletter (Admin)", page_icon="🏅", layout="wide")
 
 # ----------------------------- BANNER / LOGO -----------------------------
-st.image("https://i.imgur.com/1YQwVZB.png", width=200)  # Logo Le Pari Nordique
+st.image("assets/logo.png", width=200)  # Cabecera principal
 st.markdown("<h1 style='text-align: center; color: gold;'>Le Pari Nordique</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
@@ -75,7 +75,7 @@ GITHUB_PATH = st.secrets.get("GITHUB_PATH", "editions.csv").strip()
 GITHUB_BRANCH = st.secrets.get("GITHUB_BRANCH", "main").strip()
 ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", "").strip()
 
-LOCAL_CSV = "editions.csv"  # local fallback
+LOCAL_CSV = "editions.csv"  # fallback
 
 # ----------------------------- GITHUB HELPERS --------------------------------
 def _gh_headers(token: str) -> dict:
@@ -176,6 +176,7 @@ def save_editions_local(df: pd.DataFrame):
 
 # ----------------------------- SIDEBAR --------------------------------------
 with st.sidebar:
+    st.image("assets/logo.png", width=150)  # Logo en sidebar
     st.markdown("<div class='kicker'>Newsletter</div>", unsafe_allow_html=True)
     st.title("Le Pari Nordique 🏅")
     st.caption("Admin editor — saves to GitHub or local CSV")
@@ -197,10 +198,10 @@ else:
 st.caption(f"Source: {source}")
 st.caption(f"{I18N[lang]['last_sync']}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# ----------------------------- TABS: VIEW / ADMIN / RECORD -------------------
+# ----------------------------- TABS -----------------------------------------
 tabs = st.tabs([I18N[lang]['latest'], "Admin", "Record"])
 
-# ---------- TAB 1: Latest (read-only) -------------------------------------
+# --- TAB 1: Latest (read-only)
 with tabs[0]:
     st.subheader(I18N[lang]["latest"])
     if df.empty:
@@ -222,7 +223,7 @@ with tabs[0]:
                 st.metric("ID", str(latest.get("edition_id", "-")))
                 st.metric(I18N[lang]["published"], "✅")
 
-# ---------- TAB 2: Admin (password + editor) -------------------------------
+# --- TAB 2: Admin
 with tabs[1]:
     st.subheader("Admin — Create / Edit editions")
     if not ADMIN_PASSWORD:
@@ -232,7 +233,6 @@ with tabs[1]:
     if ADMIN_PASSWORD and pw != ADMIN_PASSWORD:
         st.info("Enter admin password to unlock editor (password provided in Streamlit secrets).")
     else:
-        # Editor form
         with st.form("editor_form"):
             col1, col2 = st.columns([1, 3])
             with col1:
@@ -260,6 +260,7 @@ with tabs[1]:
             else:
                 new_df = pd.concat([pd.DataFrame([new_row]), df], ignore_index=True)
             save_editions_local(new_df)
+
             if GITHUB_TOKEN and GITHUB_REPO:
                 with st.spinner("Saving to GitHub..."):
                     res = save_editions_to_github(new_df, gh_sha)
@@ -272,7 +273,7 @@ with tabs[1]:
             else:
                 st.success("Edition guardada localmente (editions.csv). Considera configurar GitHub para persistencia remota.")
 
-# ---------- TAB 3: Record (history + downloads) ----------------------------
+# --- TAB 3: Record
 with tabs[2]:
     st.subheader("Record — All editions")
     if df.empty:
@@ -285,7 +286,6 @@ with tabs[2]:
             dfa = dfa[dfa["title"].astype(str).str.lower().str.contains(ql) | dfa["content_md"].astype(str).str.lower().str.contains(ql)]
 
         st.dataframe(dfa.reset_index(drop=True))
-
         csv_bytes = dfa.to_csv(index=False).encode("utf-8")
         st.download_button("Download CSV (filtered)", csv_bytes, file_name="editions_export.csv", mime="text/csv")
 
