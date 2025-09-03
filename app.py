@@ -50,7 +50,7 @@ I18N = {
     "en": {
         "app_title": "Le Pari Nordique",
         "subtitle": "Sports betting insights — admin editor",
-        "latest": "Latest Edition",
+        "latest": "🏆 Latest Edition",
         "archive": "Archive",
         "stats": "Performance",
         "refresh": "Refresh",
@@ -62,7 +62,7 @@ I18N = {
     "fr": {
         "app_title": "Le Pari Nordique",
         "subtitle": "Pari sportifs — admin",
-        "latest": "Dernière édition",
+        "latest": "🏆 Dernière édition",
         "archive": "Archives",
         "stats": "Performance",
         "refresh": "Rafraîchir",
