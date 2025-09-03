@@ -220,40 +220,37 @@ tabs = st.tabs([I18N[lang]['latest'], "Admin", "Record"])
 # ---------- TAB 1: Latest (read-only) -------------------------------------
 with tabs[0]:
     st.subheader(I18N[lang]["latest"])
-
     if df.empty:
         st.info(I18N[lang]["empty"])
     else:
-        # Filtrar por idioma y publicado
+        # Filtrar por idioma y publicadas
         dfx = df[(df["published"] == True) & (df["language"].str.lower() == lang)].copy()
         if dfx.empty:
             st.info(I18N[lang]["empty"])
         else:
             latest = dfx.iloc[0]
 
-            # Diseño con fondo y sombra
-            st.markdown(
-                f"""
-                <div style="
-                    border: 1px solid rgba(0,0,0,.06);
-                    border-radius: 16px;
-                    padding: 1rem 1.25rem;
-                    box-shadow: 0 4px 20px rgba(0,0,0,.1);
-                    background-color: #ffffff;
-                    margin-bottom: 1rem;
-                ">
-                <span style='font-size: 1.1rem; color:#0EA5E9; font-weight:600'>
-                {'⚽' if lang == 'en' else '🏀'} {latest['title']}
-                </span>
-                <div style='color:#6b7280; font-size:.9rem; margin-bottom:.5rem;'>
-                {latest['date'].strftime('%Y-%m-%d') if pd.notna(latest.get("date")) else ''}
-                </div>
-                <div>{latest.get("content_md", "")}</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+            # Columnas: contenido principal y métricas
+            c1, c2 = st.columns([3, 1])
+            with c1:
+                # Badge de idioma
+                st.markdown(f"<span class='badge'>{latest['language'].upper()}</span>", unsafe_allow_html=True)
 
+                # Título
+                st.markdown(f"## {latest['title']}")
+
+                # Fecha
+                if pd.notna(latest.get("date")):
+                    st.markdown(f"<div class='meta'>{latest['date'].strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
+
+                # Contenido, reemplazando caracteres problemáticos
+                content = latest.get("content_md", "")
+                content = content.replace("’", "'").replace("“", '"').replace("”", '"')
+                st.markdown(content, unsafe_allow_html=True)
+
+            with c2:
+                # Solo mostrar publicado
+                st.metric(I18N[lang]["published"], "✅")
 # ---------- TAB 2: Admin (password + editor) -------------------------------
 with tabs[1]:
     st.subheader("Admin — Create / Edit editions")
