@@ -211,7 +211,7 @@ else:
     gh_sha = None
     source = f"Local file: {LOCAL_CSV}"
 
-st.caption(f"Source: {source}")
+# st.caption(f"Source: {source}")
 st.caption(f"{I18N[lang]['last_sync']}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 # ----------------------------- TABS: VIEW / ADMIN / RECORD -------------------
