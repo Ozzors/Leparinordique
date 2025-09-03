@@ -217,7 +217,7 @@ st.caption(f"{I18N[lang]['last_sync']}: {datetime.now().strftime('%Y-%m-%d %H:%M
 # ----------------------------- TABS: VIEW / ADMIN / RECORD -------------------
 tabs = st.tabs([I18N[lang]['latest'], "Admin", "Record"])
 
-# ---------- TAB 1: Latest (read-only) -------------------------------------
+
 # ---------- TAB 1: Latest (read-only) -------------------------------------
 with tabs[0]:
     st.subheader(I18N[lang]["latest"])
@@ -244,21 +244,12 @@ with tabs[0]:
                 if pd.notna(latest.get("date")):
                     st.markdown(f"<div class='meta'>{latest['date'].strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
 
-                # Contenido con fondo suave y sombra tipo card
+                # Contenido con fondo y color de texto legible en modo nocturno
                 content = latest.get("content_md", "")
                 content = content.replace("’", "'").replace("“", '"').replace("”", '"')
                 st.markdown(
-                    f"""
-                    <div style="
-                        background-color:#f3f4f6; 
-                        padding:20px; 
-                        border-radius:16px; 
-                        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-                        line-height:1.6;
-                    ">
-                        {content}
-                    </div>
-                    """,
+                    f"<div style='background-color:#f3f4f6; color:#111827; padding:1rem; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,.04); line-height:1.5;'>"
+                    f"{content}</div>",
                     unsafe_allow_html=True
                 )
 
