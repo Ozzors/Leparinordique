@@ -236,7 +236,7 @@ with tabs[0]:
                     st.markdown(f"<div class='meta'>{latest['date'].strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
                 st.markdown(latest.get("content_md", ""))
             with c2:
-                st.metric("ID", str(latest.get("edition_id", "-")))
+                #st.metric("ID", str(latest.get("edition_id", "-")))
                 st.metric(I18N[lang]["published"], "✅")
 
 # ---------- TAB 2: Admin (password + editor) -------------------------------
