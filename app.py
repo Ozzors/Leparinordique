@@ -203,54 +203,51 @@ def save_editions_local(df: pd.DataFrame):
     df.to_csv(LOCAL_CSV, index=False)
 
 # ----------------------------- LOGO UPLOAD -----------------------------------
+
 def upload_logo():
-    st.subheader("Upload Logo")
-    uploaded_file = st.file_uploader("Choose an image file", type=["png", "jpg", "jpeg"])
+    st.subheader("Upload app logo")
+    uploaded_file = st.file_uploader(
+        "Choose a logo (PNG or JPG/JPEG, max 2MB)", 
+        type=["png", "jpg", "jpeg"]
+    )
     if uploaded_file is not None:
-        # Preview
-        st.image(uploaded_file, caption="Preview", width=200)
+        # Validar tamaño (opcional)
+        if uploaded_file.size > 2 * 1024 * 1024:
+            st.error("File too large. Max 2MB.")
+            return
+        
+        # Guardar localmente
+        os.makedirs("assets", exist_ok=True)
+        ext = uploaded_file.name.split(".")[-1].lower()
+        local_path = f"assets/logo.png"  # siempre PNG local
+        with open(local_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        st.success(f"Logo saved locally as {local_path}")
+        st.image(local_path, width=200)
 
-        if st.button("Save Logo"):
-            # Ensure assets folder exists
-            if not os.path.isdir("assets"):
-                if os.path.exists("assets"):
-                    os.remove("assets")  # remove if it was a file
-                os.makedirs("assets", exist_ok=True)
-
-            local_path = "assets/logo.png"  # always save as logo.png
-            with open(local_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-            st.success("Logo saved locally in assets/logo.png ✅")
-
-            # Upload to GitHub
-            repo = st.secrets["GITHUB_REPO"]
-            branch = st.secrets.get("GITHUB_BRANCH", "main")
-            github_token = st.secrets["GITHUB_TOKEN"]
-            github_api = f"https://api.github.com/repos/{repo}/contents/assets/logo.png"
-
-            with open(local_path, "rb") as f:
-                content = base64.b64encode(f.read()).decode()
-
-            headers = {"Authorization": f"token {github_token}"}
-
-            # Check if file already exists
-            resp = requests.get(github_api, headers=headers, params={"ref": branch})
-            sha = resp.json()["sha"] if resp.status_code == 200 else None
-
-            data = {
-                "message": "Update logo.png from app",
-                "content": content,
-                "branch": branch,
-            }
-            if sha:
-                data["sha"] = sha
-
-            put_resp = requests.put(github_api, headers=headers, json=data)
-
-            if put_resp.status_code in [200, 201]:
-                st.success("Logo uploaded/updated in GitHub ✅")
-            else:
-                st.error(f"Error uploading logo to GitHub: {put_resp.text}")
+        # Subir a GitHub
+        if GITHUB_TOKEN and GITHUB_REPO:
+            # Convertir a PNG bytes aunque venga JPG
+            img_bytes = uploaded_file.getbuffer()
+            github_path = "assets/logo.png"  # ruta en GitHub
+            try:
+                # Verificar si ya existe para obtener SHA
+                existing_content, sha = github_get_file(GITHUB_REPO, github_path, GITHUB_TOKEN, branch=GITHUB_BRANCH)
+                res = github_put_file(
+                    repo=GITHUB_REPO,
+                    path=github_path,
+                    token=GITHUB_TOKEN,
+                    content_bytes=img_bytes,
+                    message=f"Update logo — {datetime.utcnow().isoformat()}",
+                    sha=sha,
+                    branch=GITHUB_BRANCH
+                )
+                if res:
+                    st.success("Logo uploaded to GitHub ✅")
+                else:
+                    st.error("Error uploading logo to GitHub. Check repo, branch, and token.")
+            except Exception as e:
+                st.error(f"Exception uploading logo to GitHub: {e}")
 
 
 # ----------------------------- SIDEBAR ---------------------------------------
