@@ -218,6 +218,7 @@ st.caption(f"{I18N[lang]['last_sync']}: {datetime.now().strftime('%Y-%m-%d %H:%M
 tabs = st.tabs([I18N[lang]['latest'], "Admin", "Record"])
 
 # ---------- TAB 1: Latest (read-only) -------------------------------------
+# ---------- TAB 1: Latest (read-only) -------------------------------------
 with tabs[0]:
     st.subheader(I18N[lang]["latest"])
     if df.empty:
@@ -243,14 +244,28 @@ with tabs[0]:
                 if pd.notna(latest.get("date")):
                     st.markdown(f"<div class='meta'>{latest['date'].strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
 
-                # Contenido, reemplazando caracteres problemáticos
+                # Contenido con fondo suave y sombra tipo card
                 content = latest.get("content_md", "")
                 content = content.replace("’", "'").replace("“", '"').replace("”", '"')
-                st.markdown(content, unsafe_allow_html=True)
+                st.markdown(
+                    f"""
+                    <div style="
+                        background-color:#f3f4f6; 
+                        padding:20px; 
+                        border-radius:16px; 
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+                        line-height:1.6;
+                    ">
+                        {content}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
             with c2:
                 # Solo mostrar publicado
                 st.metric(I18N[lang]["published"], "✅")
+
 # ---------- TAB 2: Admin (password + editor) -------------------------------
 with tabs[1]:
     st.subheader("Admin — Create / Edit editions")
