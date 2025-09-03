@@ -193,7 +193,13 @@ with st.sidebar:
 
 # ----------------------------- MAIN LOGO -------------------------------------
 if LOGO_URL:
-    st.image(LOGO_URL, width=200)
+    st.markdown(
+        f"""
+        <div style='text-align: center; margin-bottom: 1rem;'>
+            <img src="{LOGO_URL}" width="300px" style="border-radius:12px;" />
+        </div>
+        """,
+        unsafe_allow_html=True
 
 # ----------------------------- LOAD DATA ------------------------------------
 if GITHUB_TOKEN and GITHUB_REPO:
