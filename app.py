@@ -200,6 +200,7 @@ if LOGO_URL:
         </div>
         """,
         unsafe_allow_html=True
+    )
 
 # ----------------------------- LOAD DATA ------------------------------------
 if GITHUB_TOKEN and GITHUB_REPO:
