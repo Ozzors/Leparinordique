@@ -1,13 +1,7 @@
 # Le Pari Nordique — Streamlit app with local editor + GitHub-backed CSV storage
-# Features:
-# - "Admin" tab with password-protected editor to create/save editions
-# - Saves editions.csv to GitHub (create/update) using the GitHub Contents API
-# - "Record" tab showing history + download buttons
-# - Fallback to local editions.csv when GitHub is not configured
-# - Logo loaded directamente desde GitHub
+# Flexible logo URL: accepts .png or .jpg from GitHub
 
 import os
-import base64
 import io
 import time
 from datetime import datetime, date
@@ -16,6 +10,7 @@ from typing import Optional, Tuple
 import pandas as pd
 import requests
 import streamlit as st
+import base64
 
 # ----------------------------- PAGE CONFIG & THEME ---------------------------
 st.set_page_config(page_title="Le Pari Nordique – Newsletter (Admin)", page_icon="🏅", layout="wide")
@@ -34,6 +29,21 @@ CUSTOM_CSS = f"""
 </style>
 """
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
+# ----------------------------- FLEXIBLE LOGO URL -----------------------------
+# Change this to your GitHub repo/branch path; extension is detected automatically
+GITHUB_LOGO_DIR = "https://raw.githubusercontent.com/Ozzors/Leparinordique/dfab971279f8e3ea44ef2fe3faf3b6caf02fc8e3/assets/"
+# Look for first image in assets folder with jpg or png
+def get_logo_url():
+    possible_names = ["logo.png", "logo.jpg", "IMG-20250903-WA0001.jpg", "IMG-20250903-WA0001.png"]
+    for name in possible_names:
+        url = GITHUB_LOGO_DIR + name
+        r = requests.head(url)
+        if r.status_code == 200:
+            return url
+    return None
+
+LOGO_URL = get_logo_url()
 
 # ----------------------------- I18N -------------------------------------------
 I18N = {
@@ -70,7 +80,7 @@ GITHUB_PATH = st.secrets.get("GITHUB_PATH", "editions.csv").strip()
 GITHUB_BRANCH = st.secrets.get("GITHUB_BRANCH", "main").strip()
 ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", "").strip()
 
-LOCAL_CSV = "editions.csv"  # local fallback
+LOCAL_CSV = "editions.csv"
 
 # ----------------------------- GITHUB HELPERS --------------------------------
 def _gh_headers(token: str) -> dict:
@@ -169,20 +179,21 @@ def save_editions_to_github(df: pd.DataFrame, prev_sha: Optional[str]) -> Option
 def save_editions_local(df: pd.DataFrame):
     df.to_csv(LOCAL_CSV, index=False)
 
-# ----------------------------- LOGO URL --------------------------------------
-LOGO_URL = "https://raw.githubusercontent.com/ozzors/le-pari-nordique-app/main/assets/IMG-20250903-WA0001.jpg"
-
-# ----------------------------- HEADER & SIDEBAR --------------------------------
-st.image(LOGO_URL, width=200)
-
+# ----------------------------- SIDEBAR --------------------------------------
 with st.sidebar:
-    st.image(LOGO_URL, width=150)
+    if LOGO_URL:
+        st.image(LOGO_URL, width=150)
     st.markdown("<div class='kicker'>Newsletter</div>", unsafe_allow_html=True)
     st.title("Le Pari Nordique 🏅")
     st.caption("Admin editor — saves to GitHub or local CSV")
+
     lang = st.radio("Language / Langue", options=["fr", "en"], index=1, format_func=lambda x: "Français" if x == "fr" else "English")
     if st.button("Refresh data", use_container_width=True):
         load_editions_from_github.clear()
+
+# ----------------------------- MAIN LOGO -------------------------------------
+if LOGO_URL:
+    st.image(LOGO_URL, width=200)
 
 # ----------------------------- LOAD DATA ------------------------------------
 if GITHUB_TOKEN and GITHUB_REPO:
@@ -199,7 +210,7 @@ st.caption(f"{I18N[lang]['last_sync']}: {datetime.now().strftime('%Y-%m-%d %H:%M
 # ----------------------------- TABS: VIEW / ADMIN / RECORD -------------------
 tabs = st.tabs([I18N[lang]['latest'], "Admin", "Record"])
 
-# ----------------------------- TAB 1: Latest ---------------------------------
+# ---------- TAB 1: Latest (read-only) -------------------------------------
 with tabs[0]:
     st.subheader(I18N[lang]["latest"])
     if df.empty:
@@ -221,7 +232,7 @@ with tabs[0]:
                 st.metric("ID", str(latest.get("edition_id", "-")))
                 st.metric(I18N[lang]["published"], "✅")
 
-# ----------------------------- TAB 2: Admin ----------------------------------
+# ---------- TAB 2: Admin (password + editor) -------------------------------
 with tabs[1]:
     st.subheader("Admin — Create / Edit editions")
     if not ADMIN_PASSWORD:
@@ -250,7 +261,10 @@ with tabs[1]:
                 "content_md": content_field,
                 "published": str(bool(published_field)).upper(),
             }
-            new_df = pd.concat([pd.DataFrame([new_row]), df], ignore_index=True) if not df.empty else pd.DataFrame([new_row])
+            if df is None or df.empty:
+                new_df = pd.DataFrame([new_row])
+            else:
+                new_df = pd.concat([pd.DataFrame([new_row]), df], ignore_index=True)
             save_editions_local(new_df)
             if GITHUB_TOKEN and GITHUB_REPO:
                 with st.spinner("Saving to GitHub..."):
@@ -262,9 +276,9 @@ with tabs[1]:
                     else:
                         st.error("Failed to save to GitHub — check logs and secrets.")
             else:
-                st.success("Edition saved locally (editions.csv).")
+                st.success("Edition saved locally (editions.csv). Consider configuring GitHub for remote persistence.")
 
-# ----------------------------- TAB 3: Record ---------------------------------
+# ---------- TAB 3: Record (history + downloads) ----------------------------
 with tabs[2]:
     st.subheader("Record — All editions")
     if df.empty:
@@ -286,4 +300,5 @@ with tabs[2]:
 
 # ----------------------------- FOOTER --------------------------------------
 st.caption("© " + str(datetime.now().year) + " Le Pari Nordique — Built with Streamlit")
+
 
