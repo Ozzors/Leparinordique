@@ -204,21 +204,23 @@ def save_editions_local(df: pd.DataFrame):
 
 # ----------------------------- LOGO UPLOAD -----------------------------------
 def upload_logo():
-    st.subheader("Logo")
-    uploaded_file = st.file_uploader(I18N[lang]["upload_logo"], type=["png"])
-    if uploaded_file:
-        st.image(uploaded_file, width=200)
-        if st.button(I18N[lang]["save_logo"]):
-            # Create assets folder safely
+    st.subheader("Upload Logo")
+    uploaded_file = st.file_uploader("Choose an image file", type=["png", "jpg", "jpeg"])
+    if uploaded_file is not None:
+        # Preview
+        st.image(uploaded_file, caption="Preview", width=200)
+
+        if st.button("Save Logo"):
+            # Ensure assets folder exists
             if not os.path.isdir("assets"):
                 if os.path.exists("assets"):
-                    os.remove("assets")
+                    os.remove("assets")  # remove if it was a file
                 os.makedirs("assets", exist_ok=True)
 
-            local_path = "assets/logo.png"
+            local_path = "assets/logo.png"  # always save as logo.png
             with open(local_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
-            st.success("Logo saved locally ✅")
+            st.success("Logo saved locally in assets/logo.png ✅")
 
             # Upload to GitHub
             repo = st.secrets["GITHUB_REPO"]
@@ -230,11 +232,10 @@ def upload_logo():
                 content = base64.b64encode(f.read()).decode()
 
             headers = {"Authorization": f"token {github_token}"}
+
+            # Check if file already exists
             resp = requests.get(github_api, headers=headers, params={"ref": branch})
-            if resp.status_code == 200:
-                sha = resp.json()["sha"]
-            else:
-                sha = None
+            sha = resp.json()["sha"] if resp.status_code == 200 else None
 
             data = {
                 "message": "Update logo.png from app",
@@ -245,10 +246,12 @@ def upload_logo():
                 data["sha"] = sha
 
             put_resp = requests.put(github_api, headers=headers, json=data)
+
             if put_resp.status_code in [200, 201]:
-                st.success("Logo uploaded/updated on GitHub ✅")
+                st.success("Logo uploaded/updated in GitHub ✅")
             else:
-                st.error(f"GitHub upload error: {put_resp.text}")
+                st.error(f"Error uploading logo to GitHub: {put_resp.text}")
+
 
 # ----------------------------- SIDEBAR ---------------------------------------
 with st.sidebar:
