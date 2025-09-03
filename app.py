@@ -1,303 +1,161 @@
-# Le Pari Nordique — Streamlit app with local editor + GitHub-backed CSV storage
-# Features:
-# - "Admin" tab with password-protected editor to create/save editions
-# - Saves editions.csv to GitHub using the GitHub Contents API
-# - "Record" tab showing history + download buttons
-# - Fallback to local editions.csv when GitHub is not configured
-
+import streamlit as st
+import pandas as pd
 import os
 import base64
-import io
-import time
-from datetime import datetime, date
-from typing import Optional, Tuple
-
-import pandas as pd
 import requests
-import streamlit as st
 
-# ----------------------------- PAGE CONFIG & THEME ---------------------------
-st.set_page_config(
-    page_title="Le Pari Nordique – Newsletter (Admin)",
-    page_icon="🏅",
-    layout="wide"
-)
+# --- Configuración de la página ---
+st.set_page_config(page_title="Le Pari Nordique", page_icon="🎯", layout="wide")
 
-PRIMARY = "#0EA5E9"
-ACCENT = "#F59E0B"
-CUSTOM_CSS = f"""
-<style>
-:root {{ --primary: {PRIMARY}; --accent: {ACCENT}; }}
-.block-container {{ padding-top: 2rem; }}
-.kicker {{ color: var(--primary); font-weight: 600; text-transform: uppercase; font-size: .85rem; }}
-.edition-card {{ border: 1px solid rgba(0,0,0,.06); border-radius: 16px; padding: 1rem 1.25rem; box-shadow: 0 2px 12px rgba(0,0,0,.04); }}
-.badge {{ display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .75rem; background: rgba(14,165,233,.1); color: var(--primary); margin-right: .5rem; }}
-.meta {{ color: #6b7280; font-size: .9rem; }}
-.codebox {{ background: #0b1020; color: #e5e7eb; padding: .75rem 1rem; border-radius: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; }}
-</style>
-"""
-st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
-
-# ----------------------------- I18N -------------------------------------------
-I18N = {
-    "en": {
-        "app_title": "Le Pari Nordique",
-        "subtitle": "Sports betting insights — admin editor",
-        "latest": "Latest Edition",
-        "archive": "Archive",
-        "stats": "Performance",
-        "refresh": "Refresh",
-        "last_sync": "Last sync",
-        "empty": "No editions published yet in this language.",
-        "search": "Search in titles...",
-        "published": "Published",
-    },
-    "fr": {
-        "app_title": "Le Pari Nordique",
-        "subtitle": "Pari sportifs — admin",
-        "latest": "Dernière édition",
-        "archive": "Archives",
-        "stats": "Performance",
-        "refresh": "Rafraîchir",
-        "last_sync": "Dernière synchro",
-        "empty": "Aucune édition publiée pour cette langue.",
-        "search": "Rechercher dans les titres...",
-        "published": "Publié",
-    },
-}
-
-# ----------------------------- CONFIG: GitHub / Local -------------------------
-GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "").strip()
-GITHUB_REPO = st.secrets.get("GITHUB_REPO", "").strip()
-GITHUB_PATH = st.secrets.get("GITHUB_PATH", "editions.csv").strip()
-GITHUB_BRANCH = st.secrets.get("GITHUB_BRANCH", "main").strip()
-ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", "").strip()
-
-LOCAL_CSV = "editions.csv"
-
-# ----------------------------- GITHUB HELPERS --------------------------------
-def _gh_headers(token: str) -> dict:
-    return {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
-
-def github_get_file(repo: str, path: str, token: str, branch: str = "main") -> Tuple[Optional[bytes], Optional[str]]:
-    if not (repo and token):
-        return None, None
-    url = f"https://api.github.com/repos/{repo}/contents/{path}"
-    try:
-        r = requests.get(url, headers=_gh_headers(token), params={"ref": branch}, timeout=20)
-    except Exception as e:
-        st.error(f"Error talking to GitHub: {e}")
-        return None, None
-    if r.status_code == 200:
-        j = r.json()
-        content = base64.b64decode(j["content"].encode())
-        return content, j.get("sha")
-    elif r.status_code == 404:
-        return None, None
+# --- Función: cargar datos desde CSV ---
+def load_editions():
+    if os.path.exists("editions.csv"):
+        return pd.read_csv("editions.csv")
     else:
-        st.error(f"GitHub API error: {r.status_code} — {r.text}")
-        return None, None
+        return pd.DataFrame(columns=["Fecha", "Evento", "Ganador"])
 
-def github_put_file(repo: str, path: str, token: str, content_bytes: bytes, message: str, sha: Optional[str] = None, branch: str = "main") -> Optional[dict]:
-    if not (repo and token):
-        st.error("GitHub is not configured (missing token or repo).")
-        return None
-    url = f"https://api.github.com/repos/{repo}/contents/{path}"
-    payload = {
-        "message": message,
-        "content": base64.b64encode(content_bytes).decode("utf-8"),
+# --- Función: guardar datos en CSV y GitHub ---
+def save_editions(df):
+    df.to_csv("editions.csv", index=False)
+
+    repo = st.secrets["GITHUB_REPO"]
+    branch = st.secrets.get("GITHUB_BRANCH", "main")
+    github_token = st.secrets["GITHUB_TOKEN"]
+    github_api = f"https://api.github.com/repos/{repo}/contents/editions.csv"
+
+    with open("editions.csv", "rb") as f:
+        content = base64.b64encode(f.read()).decode()
+
+    headers = {"Authorization": f"token {github_token}"}
+
+    # Verificar si el archivo ya existe en GitHub
+    resp = requests.get(github_api, headers=headers, params={"ref": branch})
+    if resp.status_code == 200:
+        sha = resp.json()["sha"]
+    else:
+        sha = None
+
+    data = {
+        "message": "Actualizar editions.csv desde la app",
+        "content": content,
         "branch": branch,
     }
     if sha:
-        payload["sha"] = sha
-    try:
-        r = requests.put(url, headers=_gh_headers(token), json=payload, timeout=30)
-    except Exception as e:
-        st.error(f"Error talking to GitHub: {e}")
-        return None
-    if r.status_code in (200, 201):
-        return r.json()
-    else:
-        st.error(f"Failed to write file to GitHub: {r.status_code} — {r.text}")
-        return None
+        data["sha"] = sha
 
-# ----------------------------- DATA LOADING / SAVING -------------------------
-@st.cache_data(ttl=30)
-def load_editions_from_github() -> Tuple[pd.DataFrame, Optional[str]]:
-    if not (GITHUB_TOKEN and GITHUB_REPO):
-        return pd.DataFrame(), None
-    content, sha = github_get_file(GITHUB_REPO, GITHUB_PATH, GITHUB_TOKEN, branch=GITHUB_BRANCH)
-    if content is None:
-        return pd.DataFrame(), None
-    try:
-        df = pd.read_csv(io.StringIO(content.decode("utf-8")))
-    except Exception as e:
-        st.error(f"Failed to parse CSV from GitHub: {e}")
-        return pd.DataFrame(), sha
-    expected = ["edition_id", "date", "language", "title", "content_md", "published"]
-    for col in expected:
-        if col not in df.columns:
-            df[col] = None
-    try:
-        df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    except Exception:
-        pass
-    df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])
-    df = df.sort_values("date", ascending=False, na_position="last").reset_index(drop=True)
-    return df, sha
+    put_resp = requests.put(github_api, headers=headers, json=data)
 
-def load_editions_local() -> pd.DataFrame:
-    if os.path.exists(LOCAL_CSV):
-        try:
-            df = pd.read_csv(LOCAL_CSV)
-            for col in ["edition_id", "date", "language", "title", "content_md", "published"]:
-                if col not in df.columns:
-                    df[col] = None
-            try:
-                df["date"] = pd.to_datetime(df["date"], errors="coerce")
-            except Exception:
-                pass
-            df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])
-            return df.sort_values("date", ascending=False, na_position="last").reset_index(drop=True)
-        except Exception as e:
-            st.error(f"Failed to read local CSV: {e}")
-            return pd.DataFrame()
-    return pd.DataFrame()
+    if put_resp.status_code not in [200, 201]:
+        st.error(f"Error al guardar en GitHub: {put_resp.text}")
 
-def save_editions_to_github(df: pd.DataFrame, prev_sha: Optional[str]) -> Optional[dict]:
-    csv_bytes = df.to_csv(index=False).encode("utf-8")
-    message = f"Update editions.csv — {datetime.utcnow().isoformat()}"
-    return github_put_file(GITHUB_REPO, GITHUB_PATH, GITHUB_TOKEN, csv_bytes, message, sha=prev_sha, branch=GITHUB_BRANCH)
+# --- Función: subir logo y guardar en GitHub ---
+def upload_logo():
+    st.subheader("Subir logo")
+    uploaded_file = st.file_uploader("Elige un archivo de imagen", type=["png", "jpg", "jpeg"])
+    if uploaded_file is not None:
+        # Mostrar vista previa
+        st.image(uploaded_file, caption="Vista previa", width=200)
 
-def save_editions_local(df: pd.DataFrame):
-    df.to_csv(LOCAL_CSV, index=False)
+        if st.button("Guardar logo"):
+            # Guardar localmente en carpeta assets
+            os.makedirs("assets", exist_ok=True)
+            local_path = "assets/logo.png"
+            with open(local_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            st.success("Logo guardado localmente en assets/logo.png ✅")
 
-# ----------------------------- SIDEBAR --------------------------------------
-with st.sidebar:
-    st.markdown("<div class='kicker'>Newsletter</div>", unsafe_allow_html=True)
-    st.title("Le Pari Nordique 🏅")
-    st.caption("Admin editor — saves to GitHub or local CSV")
-    lang = st.radio("Language / Langue", options=["fr", "en"], index=1, format_func=lambda x: "Français" if x == "fr" else "English")
-    if st.button("Refresh data", use_container_width=True):
-        load_editions_from_github.clear()
+            # Subir a GitHub
+            repo = st.secrets["GITHUB_REPO"]
+            branch = st.secrets.get("GITHUB_BRANCH", "main")
+            github_token = st.secrets["GITHUB_TOKEN"]
+            github_api = f"https://api.github.com/repos/{repo}/contents/assets/logo.png"
 
-# ----------------------------- LOAD DATA ------------------------------------
-if GITHUB_TOKEN and GITHUB_REPO:
-    df, gh_sha = load_editions_from_github()
-    source = f"GitHub: {GITHUB_REPO}/{GITHUB_PATH} (branch: {GITHUB_BRANCH})"
-else:
-    df = load_editions_local()
-    gh_sha = None
-    source = f"Local file: {LOCAL_CSV}"
+            with open(local_path, "rb") as f:
+                content = base64.b64encode(f.read()).decode()
 
-st.caption(f"Source: {source}")
-st.caption(f"{I18N[lang]['last_sync']}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            headers = {"Authorization": f"token {github_token}"}
 
-# ----------------------------- TABS: VIEW / ADMIN / RECORD -------------------
-tabs = st.tabs([I18N[lang]['latest'], "Admin", "Record"])
+            # Verificar si el archivo ya existe en GitHub
+            resp = requests.get(github_api, headers=headers, params={"ref": branch})
+            if resp.status_code == 200:
+                sha = resp.json()["sha"]
+            else:
+                sha = None
 
-# ---------- TAB 1: Latest (read-only) -------------------------------------
-with tabs[0]:
-    st.subheader(I18N[lang]["latest"])
-    if df.empty:
-        st.info(I18N[lang]["empty"])
-    else:
-        dfx = df[(df["published"] == True) & (df["language"].str.lower() == lang)].copy()
-        if dfx.empty:
-            st.info(I18N[lang]["empty"])
-        else:
-            latest = dfx.iloc[0]
-            c1, c2 = st.columns([3, 1])
-            with c1:
-                st.markdown(f"<span class='badge'>{latest['language'].upper()}</span>", unsafe_allow_html=True)
-                st.markdown(f"## {latest['title']}")
-                if pd.notna(latest.get("date")):
-                    st.markdown(f"<div class='meta'>{latest['date'].strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
-                st.markdown(latest.get("content_md", ""))
-            with c2:
-                st.metric("ID", str(latest.get("edition_id", "-")))
-                st.metric(I18N[lang]["published"], "✅")
-
-# ---------- TAB 2: Admin (password + editor) -------------------------------
-with tabs[1]:
-    st.subheader("Admin — Create / Edit editions")
-    if not ADMIN_PASSWORD:
-        st.warning("No ADMIN_PASSWORD configured in secrets. Set ADMIN_PASSWORD in Streamlit secrets to protect the editor.")
-
-    pw = st.text_input("Admin password", type="password")
-    if ADMIN_PASSWORD and pw != ADMIN_PASSWORD:
-        st.info("Enter admin password to unlock editor (password provided in Streamlit secrets).")
-    else:
-        # Editor form
-        with st.form("editor_form"):
-            col1, col2 = st.columns([1, 3])
-            with col1:
-                d = st.date_input("Date", value=date.today())
-                language_field = st.selectbox("Language", options=["en", "fr"], index=0)
-                published_field = st.checkbox("Published", value=True)
-            with col2:
-                title_field = st.text_input("Title")
-                content_field = st.text_area("Content (Markdown)", height=300)
-
-            submitted = st.form_submit_button("Save edition")
-
-        if submitted:
-            edition_id = f"{d.strftime('%Y%m%d')}-{language_field}-{int(time.time())}"
-            new_row = {
-                "edition_id": edition_id,
-                "date": d.strftime("%Y-%m-%d"),
-                "language": language_field,
-                "title": title_field,
-                "content_md": content_field,
-                "published": str(bool(published_field)).upper(),
+            data = {
+                "message": "Actualizar logo.png desde la app",
+                "content": content,
+                "branch": branch,
             }
+            if sha:
+                data["sha"] = sha
 
-            if df is None or df.empty:
-                new_df = pd.DataFrame([new_row])
+            put_resp = requests.put(github_api, headers=headers, json=data)
+
+            if put_resp.status_code in [200, 201]:
+                st.success("Logo subido/actualizado en GitHub ✅")
             else:
-                new_df = pd.concat([pd.DataFrame([new_row]), df], ignore_index=True)
+                st.error(f"Error al subir logo a GitHub: {put_resp.text}")
 
-            # Save locally always
-            save_editions_local(new_df)
-
-            # Save to GitHub if configured
-            if GITHUB_TOKEN and GITHUB_REPO:
-                with st.spinner("Saving to GitHub..."):
-                    res = save_editions_to_github(new_df, gh_sha)
-                    if res:
-                        st.success("Edition guardada y subida a GitHub ✅")
-                        load_editions_from_github.clear()
-                        df, gh_sha = load_editions_from_github()
-                    else:
-                        st.error("No se pudo guardar en GitHub — revisa los logs y secretos.")
-            else:
-                st.success("Edition guardada localmente (editions.csv). Considera configurar GitHub para persistencia remota.")
-
-# ---------- TAB 3: Record (history + downloads) ----------------------------
-with tabs[2]:
-    st.subheader("Record — All editions")
-    if df.empty:
-        st.info("No editions available.")
+# --- Cargar logo (si existe) ---
+def show_logo():
+    if os.path.exists("assets/logo.png"):
+        st.image("assets/logo.png", width=200)
     else:
-        q = st.text_input("Search titles/content...", value="")
-        dfa = df.copy()
-        if q:
-            ql = q.lower().strip()
-            dfa = dfa[dfa["title"].astype(str).str.lower().str.contains(ql) |
-                      dfa["content_md"].astype(str).str.lower().str.contains(ql)]
-        st.dataframe(dfa.reset_index(drop=True))
+        st.write("🎯 Le Pari Nordique")
 
-        # Download filtered CSV
-        csv_bytes = dfa.to_csv(index=False).encode("utf-8")
-        st.download_button("Download CSV (filtered)", csv_bytes, file_name="editions_export.csv", mime="text/csv")
+# --- Interfaz ---
+show_logo()
 
-        # Download single edition markdown
-        sel = st.selectbox("Download single edition (ID)", options=list(dfa["edition_id"].astype(str)), index=0)
-        if sel:
-            sel_row = dfa[dfa["edition_id"].astype(str) == sel].iloc[0]
-            md_content = f"# {sel_row['title']}\n\n{sel_row['content_md']}"
-            st.download_button("Download MD", md_content, file_name=f"{sel}.md", mime="text/markdown")
+# --- Sidebar ---
+with st.sidebar:
+    if os.path.exists("assets/logo.png"):
+        st.image("assets/logo.png", width=150)
+    st.title("Le Pari Nordique")
+    menu = st.radio("Navegación", ["Inicio", "Historial", "Admin"])
 
-# ----------------------------- FOOTER --------------------------------------
-st.caption("© " + str(datetime.now().year) + " Le Pari Nordique — Built with Streamlit")
+# --- Contenido principal ---
+if menu == "Inicio":
+    st.header("📊 Bienvenido a Le Pari Nordique")
+    st.write("Explora los resultados y el historial de apuestas deportivas.")
+
+elif menu == "Historial":
+    st.header("📜 Historial de ediciones")
+    df = load_editions()
+    if not df.empty:
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.info("No hay ediciones registradas aún.")
+
+elif menu == "Admin":
+    st.header("🔧 Panel de administración")
+    password = st.text_input("Contraseña", type="password")
+    if password == st.secrets["ADMIN_PASSWORD"]:
+        st.success("Acceso concedido ✅")
+
+        # --- Gestión de ediciones ---
+        st.subheader("Agregar nueva edición")
+        fecha = st.date_input("Fecha")
+        evento = st.text_input("Evento")
+        ganador = st.text_input("Ganador")
+        if st.button("Guardar edición"):
+            df = load_editions()
+            df = pd.concat(
+                [df, pd.DataFrame({"Fecha": [fecha], "Evento": [evento], "Ganador": [ganador]})],
+                ignore_index=True,
+            )
+            save_editions(df)
+            st.success("Edición guardada ✅")
+
+        st.subheader("Ediciones actuales")
+        df = load_editions()
+        st.dataframe(df, use_container_width=True)
+
+        # --- Configuración del logo ---
+        with st.expander("Configuración del logo"):
+            upload_logo()
+
+    else:
+        st.warning("Introduce la contraseña para acceder.")
+
 
