@@ -286,24 +286,63 @@ with tabs[1]:
                 st.success("Edition saved locally (editions.csv). Consider configuring GitHub for remote persistence.")
 
 # ---------- TAB 3: Record (history + downloads) ----------------------------
+# ---------- TAB 3: Record (history + downloads) ----------------------------
 with tabs[2]:
-    st.subheader("Record — All editions")
+    st.subheader("📊 Record — All editions")
     if df.empty:
         st.info("No editions available.")
     else:
+        # 🔍 Buscador
         q = st.text_input("Search titles/content...", value="")
         dfa = df.copy()
         if q:
             ql = q.lower().strip()
-            dfa = dfa[dfa["title"].astype(str).str.lower().str.contains(ql) | dfa["content_md"].astype(str).str.lower().str.contains(ql)]
-        st.dataframe(dfa.reset_index(drop=True))
+            dfa = dfa[
+                dfa["title"].astype(str).str.lower().str.contains(ql)
+                | dfa["content_md"].astype(str).str.lower().str.contains(ql)
+            ]
+
+        # 🎴 Mostrar cada edición como tarjeta con estilo deportivo
+        sports_emojis = ["⚽", "🏀", "🏈", "🎾", "🏐", "🏒", "🥊", "🏓"]
+        for i, (_, row) in enumerate(dfa.iterrows()):
+            emoji = sports_emojis[i % len(sports_emojis)]
+            st.markdown(
+                f"""
+                <div class="edition-card">
+                    <div class="badge">{row['language'].upper()} {emoji}</div>
+                    <h4>{emoji} {row['title']}</h4>
+                    <div class="meta">{row['date']}</div>
+                    <p>{str(row['content_md'])[:180]}...</p>
+                    <div class="meta">{'✅ Published' if row['published'] else '❌ Draft'}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        # 📥 Descargas
         csv_bytes = dfa.to_csv(index=False).encode("utf-8")
-        st.download_button("Download CSV (filtered)", csv_bytes, file_name="editions_export.csv", mime="text/csv")
-        sel = st.selectbox("Download single edition (ID)", options=list(dfa["edition_id"].astype(str)), index=0)
+        st.download_button(
+            "⬇️ Download CSV (filtered)",
+            csv_bytes,
+            file_name="editions_export.csv",
+            mime="text/csv",
+        )
+
+        sel = st.selectbox(
+            "Download single edition (ID)",
+            options=list(dfa["edition_id"].astype(str)),
+            index=0,
+        )
         if sel:
             sel_row = dfa[dfa["edition_id"].astype(str) == sel].iloc[0]
             md_content = f"# {sel_row['title']}\n\n{sel_row['content_md']}"
-            st.download_button("Download MD", md_content, file_name=f"{sel}.md", mime="text/markdown")
+            st.download_button(
+                "⬇️ Download MD",
+                md_content,
+                file_name=f"{sel}.md",
+                mime="text/markdown",
+            )
+
 
 # ----------------------------- FOOTER --------------------------------------
 st.caption("© " + str(datetime.now().year) + " Le Pari Nordique — Built with Streamlit")
