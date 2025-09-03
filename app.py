@@ -1,3 +1,11 @@
+# Le Pari Nordique — Streamlit app with local editor + GitHub-backed CSV storage
+# Features:
+# - "Admin" tab with password-protected editor to create/save editions
+# - Saves editions.csv to GitHub (create/update) using the GitHub Contents API
+# - "Record" tab showing history + download buttons
+# - Fallback to local editions.csv when GitHub is not configured
+# - Logo loaded directamente desde GitHub
+
 import os
 import base64
 import io
@@ -10,53 +18,24 @@ import requests
 import streamlit as st
 
 # ----------------------------- PAGE CONFIG & THEME ---------------------------
-st.set_page_config(
-    page_title="Le Pari Nordique – Newsletter",
-    page_icon="🏅",
-    layout="wide"
-)
+st.set_page_config(page_title="Le Pari Nordique – Newsletter (Admin)", page_icon="🏅", layout="wide")
 
 PRIMARY = "#0EA5E9"
 ACCENT = "#F59E0B"
 CUSTOM_CSS = f"""
 <style>
-:root {{
-  --primary: {PRIMARY};
-  --accent: {ACCENT};
-}}
-.block-container {{
-  padding-top: 2rem;
-}}
-.kicker {{
-  color: var(--primary);
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: .85rem;
-}}
-.edition-card {{
-  border: 1px solid rgba(0,0,0,.06);
-  border-radius: 16px;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 2px 12px rgba(0,0,0,.04);
-}}
-.badge {{
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: .75rem;
-  background: rgba(14,165,233,.1);
-  color: var(--primary);
-  margin-right: .5rem;
-}}
-.meta {{
-  color: #6b7280;
-  font-size: .9rem;
-}}
+:root {{ --primary: {PRIMARY}; --accent: {ACCENT}; }}
+.block-container {{ padding-top: 2rem; }}
+.kicker {{ color: var(--primary); font-weight: 600; text-transform: uppercase; font-size: .85rem; }}
+.edition-card {{ border: 1px solid rgba(0,0,0,.06); border-radius: 16px; padding: 1rem 1.25rem; box-shadow: 0 2px 12px rgba(0,0,0,.04); }}
+.badge {{ display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .75rem; background: rgba(14,165,233,.1); color: var(--primary); margin-right: .5rem; }}
+.meta {{ color: #6b7280; font-size: .9rem; }}
+.codebox {{ background: #0b1020; color: #e5e7eb; padding: .75rem 1rem; border-radius: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; }}
 </style>
 """
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
-# ----------------------------- I18N ------------------------------------------
+# ----------------------------- I18N -------------------------------------------
 I18N = {
     "en": {
         "app_title": "Le Pari Nordique",
@@ -69,16 +48,10 @@ I18N = {
         "empty": "No editions published yet in this language.",
         "search": "Search in titles...",
         "published": "Published",
-        "admin": "Admin — Create / Edit editions",
-        "record": "Record — All editions",
-        "password": "Admin password",
-        "save": "Save edition",
-        "upload_logo": "Upload a logo (PNG)",
-        "save_logo": "Save logo",
     },
     "fr": {
         "app_title": "Le Pari Nordique",
-        "subtitle": "Paris sportifs — éditeur admin",
+        "subtitle": "Pari sportifs — admin",
         "latest": "Dernière édition",
         "archive": "Archives",
         "stats": "Performance",
@@ -87,23 +60,17 @@ I18N = {
         "empty": "Aucune édition publiée pour cette langue.",
         "search": "Rechercher dans les titres...",
         "published": "Publié",
-        "admin": "Admin — Créer / Modifier des éditions",
-        "record": "Historique — Toutes les éditions",
-        "password": "Mot de passe admin",
-        "save": "Enregistrer l’édition",
-        "upload_logo": "Téléverser un logo (PNG)",
-        "save_logo": "Enregistrer le logo",
     },
 }
 
-# ----------------------------- CONFIG: GitHub / Local ------------------------
+# ----------------------------- CONFIG: GitHub / Local -------------------------
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "").strip()
 GITHUB_REPO = st.secrets.get("GITHUB_REPO", "").strip()
 GITHUB_PATH = st.secrets.get("GITHUB_PATH", "editions.csv").strip()
 GITHUB_BRANCH = st.secrets.get("GITHUB_BRANCH", "main").strip()
 ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", "").strip()
 
-LOCAL_CSV = "editions.csv"
+LOCAL_CSV = "editions.csv"  # local fallback
 
 # ----------------------------- GITHUB HELPERS --------------------------------
 def _gh_headers(token: str) -> dict:
@@ -151,7 +118,7 @@ def github_put_file(repo: str, path: str, token: str, content_bytes: bytes, mess
         st.error(f"Failed to write file to GitHub: {r.status_code} — {r.text}")
         return None
 
-# ----------------------------- DATA LOADING ----------------------------------
+# ----------------------------- DATA LOADING / SAVING -------------------------
 @st.cache_data(ttl=30)
 def load_editions_from_github() -> Tuple[pd.DataFrame, Optional[str]]:
     if not (GITHUB_TOKEN and GITHUB_REPO):
@@ -172,7 +139,7 @@ def load_editions_from_github() -> Tuple[pd.DataFrame, Optional[str]]:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
     except Exception:
         pass
-    df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])
+    df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])    
     df = df.sort_values("date", ascending=False, na_position="last").reset_index(drop=True)
     return df, sha
 
@@ -187,7 +154,7 @@ def load_editions_local() -> pd.DataFrame:
                 df["date"] = pd.to_datetime(df["date"], errors="coerce")
             except Exception:
                 pass
-            df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])
+            df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])    
             return df.sort_values("date", ascending=False, na_position="last").reset_index(drop=True)
         except Exception as e:
             st.error(f"Failed to read local CSV: {e}")
@@ -202,63 +169,22 @@ def save_editions_to_github(df: pd.DataFrame, prev_sha: Optional[str]) -> Option
 def save_editions_local(df: pd.DataFrame):
     df.to_csv(LOCAL_CSV, index=False)
 
-# ----------------------------- LOGO UPLOAD -----------------------------------
+# ----------------------------- LOGO URL --------------------------------------
+LOGO_URL = "https://raw.githubusercontent.com/ozzors/le-pari-nordique-app/main/assets/IMG-20250903-WA0001.jpg"
 
-def upload_logo():
-    st.subheader("Upload site logo (PNG or JPG)")
+# ----------------------------- HEADER & SIDEBAR --------------------------------
+st.image(LOGO_URL, width=200)
 
-    logo_file = st.file_uploader("Choose a logo (PNG or JPG)", type=["png", "jpg", "jpeg"])
-    if not logo_file:
-        return
-
-    logo_bytes = logo_file.read()
-    
-    # Guardar localmente siempre como logo.png
-    os.makedirs("assets", exist_ok=True)
-    with open("assets/logo.png", "wb") as f:
-        f.write(logo_bytes)
-    st.success("Logo saved locally ✅")
-
-    # Subir a GitHub si está configurado
-    if GITHUB_TOKEN and GITHUB_REPO:
-        # Primero, asegurarnos de que la carpeta 'assets' exista en GitHub
-        content, sha = github_get_file(GITHUB_REPO, "assets/.gitkeep", GITHUB_TOKEN, branch=GITHUB_BRANCH)
-        if content is None:
-            # Crear .gitkeep para que la carpeta exista
-            github_put_file(
-                repo=GITHUB_REPO,
-                path="assets/.gitkeep",
-                token=GITHUB_TOKEN,
-                content_bytes=b"",
-                message="Create assets folder",
-                branch=GITHUB_BRANCH
-            )
-
-        # Luego subir el logo como logo.png
-        res = github_put_file(
-            repo=GITHUB_REPO,
-            path="assets/logo.png",
-            token=GITHUB_TOKEN,
-            content_bytes=logo_bytes,
-            message="Upload logo",
-            branch=GITHUB_BRANCH
-        )
-        if res:
-            st.success("Logo uploaded to GitHub ✅")
-        else:
-            st.error("Error uploading logo to GitHub. Check repo, branch, and token.")
-
-
-# ----------------------------- SIDEBAR ---------------------------------------
 with st.sidebar:
+    st.image(LOGO_URL, width=150)
     st.markdown("<div class='kicker'>Newsletter</div>", unsafe_allow_html=True)
     st.title("Le Pari Nordique 🏅")
     st.caption("Admin editor — saves to GitHub or local CSV")
     lang = st.radio("Language / Langue", options=["fr", "en"], index=1, format_func=lambda x: "Français" if x == "fr" else "English")
-    if st.button(I18N[lang]["refresh"], use_container_width=True):
+    if st.button("Refresh data", use_container_width=True):
         load_editions_from_github.clear()
 
-# ----------------------------- LOAD DATA -------------------------------------
+# ----------------------------- LOAD DATA ------------------------------------
 if GITHUB_TOKEN and GITHUB_REPO:
     df, gh_sha = load_editions_from_github()
     source = f"GitHub: {GITHUB_REPO}/{GITHUB_PATH} (branch: {GITHUB_BRANCH})"
@@ -270,10 +196,10 @@ else:
 st.caption(f"Source: {source}")
 st.caption(f"{I18N[lang]['last_sync']}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# ----------------------------- TABS ------------------------------------------
-tabs = st.tabs([I18N[lang]['latest'], I18N[lang]['admin'], I18N[lang]['record']])
+# ----------------------------- TABS: VIEW / ADMIN / RECORD -------------------
+tabs = st.tabs([I18N[lang]['latest'], "Admin", "Record"])
 
-# ---------- TAB 1: Latest ----------------------------------------------------
+# ----------------------------- TAB 1: Latest ---------------------------------
 with tabs[0]:
     st.subheader(I18N[lang]["latest"])
     if df.empty:
@@ -295,60 +221,56 @@ with tabs[0]:
                 st.metric("ID", str(latest.get("edition_id", "-")))
                 st.metric(I18N[lang]["published"], "✅")
 
-# ---------- TAB 2: Admin -----------------------------------------------------
+# ----------------------------- TAB 2: Admin ----------------------------------
 with tabs[1]:
-    st.subheader(I18N[lang]["admin"])
+    st.subheader("Admin — Create / Edit editions")
     if not ADMIN_PASSWORD:
-        st.warning("No ADMIN_PASSWORD configured in secrets.")
-    pw = st.text_input(I18N[lang]["password"], type="password")
+        st.warning("No ADMIN_PASSWORD configured in secrets. Set ADMIN_PASSWORD in Streamlit secrets to protect the editor.")
+    pw = st.text_input("Admin password", type="password")
     if ADMIN_PASSWORD and pw != ADMIN_PASSWORD:
-        st.info("Enter admin password to unlock editor.")
+        st.info("Enter admin password to unlock editor (password provided in Streamlit secrets).")
     else:
         with st.form("editor_form"):
             col1, col2 = st.columns([1, 3])
             with col1:
                 d = st.date_input("Date", value=date.today())
                 language_field = st.selectbox("Language", options=["en", "fr"], index=0)
-                published_field = st.checkbox(I18N[lang]["published"], value=True)
+                published_field = st.checkbox("Published", value=True)
             with col2:
                 title_field = st.text_input("Title")
                 content_field = st.text_area("Content (Markdown)", height=300)
-            submitted = st.form_submit_button(I18N[lang]["save"])
-            if submitted:
-                edition_id = f"{d.strftime('%Y%m%d')}-{language_field}-{int(time.time())}"
-                new_row = {
-                    "edition_id": edition_id,
-                    "date": d.strftime("%Y-%m-%d"),
-                    "language": language_field,
-                    "title": title_field,
-                    "content_md": content_field,
-                    "published": str(bool(published_field)).upper(),
-                }
-                if df is None or df.empty:
-                    new_df = pd.DataFrame([new_row])
-                else:
-                    new_df = pd.concat([pd.DataFrame([new_row]), df], ignore_index=True)
-                save_editions_local(new_df)
-                if GITHUB_TOKEN and GITHUB_REPO:
-                    with st.spinner("Saving to GitHub..."):
-                        res = save_editions_to_github(new_df, gh_sha)
+            submitted = st.form_submit_button("Save edition")
+        if submitted:
+            edition_id = f"{d.strftime('%Y%m%d')}-{language_field}-{int(time.time())}"
+            new_row = {
+                "edition_id": edition_id,
+                "date": d.strftime("%Y-%m-%d"),
+                "language": language_field,
+                "title": title_field,
+                "content_md": content_field,
+                "published": str(bool(published_field)).upper(),
+            }
+            new_df = pd.concat([pd.DataFrame([new_row]), df], ignore_index=True) if not df.empty else pd.DataFrame([new_row])
+            save_editions_local(new_df)
+            if GITHUB_TOKEN and GITHUB_REPO:
+                with st.spinner("Saving to GitHub..."):
+                    res = save_editions_to_github(new_df, gh_sha)
                     if res:
                         st.success("Edition saved and uploaded to GitHub ✅")
                         load_editions_from_github.clear()
                         df, gh_sha = load_editions_from_github()
                     else:
-                        st.error("Failed to save to GitHub.")
-                else:
-                    st.success("Edition saved locally (editions.csv).")
-        upload_logo()
+                        st.error("Failed to save to GitHub — check logs and secrets.")
+            else:
+                st.success("Edition saved locally (editions.csv).")
 
-# ---------- TAB 3: Record ----------------------------------------------------
+# ----------------------------- TAB 3: Record ---------------------------------
 with tabs[2]:
-    st.subheader(I18N[lang]["record"])
+    st.subheader("Record — All editions")
     if df.empty:
         st.info("No editions available.")
     else:
-        q = st.text_input(I18N[lang]["search"], value="")
+        q = st.text_input("Search titles/content...", value="")
         dfa = df.copy()
         if q:
             ql = q.lower().strip()
@@ -362,7 +284,6 @@ with tabs[2]:
             md_content = f"# {sel_row['title']}\n\n{sel_row['content_md']}"
             st.download_button("Download MD", md_content, file_name=f"{sel}.md", mime="text/markdown")
 
-# ----------------------------- FOOTER ----------------------------------------
+# ----------------------------- FOOTER --------------------------------------
 st.caption("© " + str(datetime.now().year) + " Le Pari Nordique — Built with Streamlit")
-
 
