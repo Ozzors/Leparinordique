@@ -205,51 +205,48 @@ def save_editions_local(df: pd.DataFrame):
 # ----------------------------- LOGO UPLOAD -----------------------------------
 
 def upload_logo():
-    st.subheader("Upload app logo")
-    uploaded_file = st.file_uploader(
-        "Choose a logo (PNG or JPG/JPEG, max 2MB)", 
-        type=["png", "jpg", "jpeg"]
-    )
-    if uploaded_file is not None:
-        # Validar tamaño
-        if uploaded_file.size > 2 * 1024 * 1024:
-            st.error("File too large. Max 2MB.")
-            return
-        
-        # Crear carpeta assets si no existe
-        if not os.path.exists("assets"):
-            os.makedirs("assets")
-        elif not os.path.isdir("assets"):
-            st.error("'assets' exists but is not a directory.")
-            return
+    st.subheader("Upload site logo (PNG or JPG)")
 
-        # Guardar logo localmente como PNG
-        local_path = "assets/logo.png"
-        with open(local_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-        st.success(f"Logo saved locally as {local_path}")
-        st.image(local_path, width=200)
+    logo_file = st.file_uploader("Choose a logo (PNG or JPG)", type=["png", "jpg", "jpeg"])
+    if not logo_file:
+        return
 
-        # Subir a GitHub
-        if GITHUB_TOKEN and GITHUB_REPO:
-            github_path = "assets/logo.png"
-            try:
-                existing_content, sha = github_get_file(GITHUB_REPO, github_path, GITHUB_TOKEN, branch=GITHUB_BRANCH)
-                res = github_put_file(
-                    repo=GITHUB_REPO,
-                    path=github_path,
-                    token=GITHUB_TOKEN,
-                    content_bytes=uploaded_file.getbuffer(),
-                    message=f"Update logo — {datetime.utcnow().isoformat()}",
-                    sha=sha,
-                    branch=GITHUB_BRANCH
-                )
-                if res:
-                    st.success("Logo uploaded to GitHub ✅")
-                else:
-                    st.error("Error uploading logo to GitHub. Check repo, branch, and token.")
-            except Exception as e:
-                st.error(f"Exception uploading logo to GitHub: {e}")
+    logo_bytes = logo_file.read()
+    
+    # Guardar localmente siempre como logo.png
+    os.makedirs("assets", exist_ok=True)
+    with open("assets/logo.png", "wb") as f:
+        f.write(logo_bytes)
+    st.success("Logo saved locally ✅")
+
+    # Subir a GitHub si está configurado
+    if GITHUB_TOKEN and GITHUB_REPO:
+        # Primero, asegurarnos de que la carpeta 'assets' exista en GitHub
+        content, sha = github_get_file(GITHUB_REPO, "assets/.gitkeep", GITHUB_TOKEN, branch=GITHUB_BRANCH)
+        if content is None:
+            # Crear .gitkeep para que la carpeta exista
+            github_put_file(
+                repo=GITHUB_REPO,
+                path="assets/.gitkeep",
+                token=GITHUB_TOKEN,
+                content_bytes=b"",
+                message="Create assets folder",
+                branch=GITHUB_BRANCH
+            )
+
+        # Luego subir el logo como logo.png
+        res = github_put_file(
+            repo=GITHUB_REPO,
+            path="assets/logo.png",
+            token=GITHUB_TOKEN,
+            content_bytes=logo_bytes,
+            message="Upload logo",
+            branch=GITHUB_BRANCH
+        )
+        if res:
+            st.success("Logo uploaded to GitHub ✅")
+        else:
+            st.error("Error uploading logo to GitHub. Check repo, branch, and token.")
 
 
 # ----------------------------- SIDEBAR ---------------------------------------
