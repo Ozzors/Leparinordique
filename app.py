@@ -32,7 +32,6 @@ st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 # ----------------------------- FLEXIBLE LOGO URL -----------------------------
 GITHUB_LOGO_DIR = "https://raw.githubusercontent.com/Ozzors/Leparinordique/dfab971279f8e3ea44ef2fe3faf3b6caf02fc8e3/assets/"
-
 def get_logo_url():
     possible_names = ["logo.png", "logo.jpg", "IMG-20250903-WA0001.jpg", "IMG-20250903-WA0001.png"]
     for name in possible_names:
@@ -186,6 +185,7 @@ with st.sidebar:
     st.title("Le Pari Nordique 🏅")
     st.caption("Admin editor — saves to GitHub or local CSV")
 
+    # Idioma
     lang = st.radio(
         "Language / Langue",
         options=["fr", "en"],
@@ -193,8 +193,16 @@ with st.sidebar:
         format_func=lambda x: "Français" if x == "fr" else "English",
         key="lang_radio"
     )
+
+    # Botón de refresh
     if st.button("Refresh data", use_container_width=True, key="refresh_button"):
         load_editions_from_github.clear()
+
+    # Ícono discreto para admin
+    show_admin_expander = st.button("⚙️", key="admin_icon")
+    if show_admin_expander:
+        with st.expander("Admin login", expanded=True):
+            pw_input = st.text_input("Enter admin password:", type="password", key="pw_input")
 
 # ----------------------------- MAIN LOGO -------------------------------------
 if LOGO_URL:
@@ -219,10 +227,8 @@ else:
 st.caption(f"{I18N[lang]['last_sync']}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 # ----------------------------- TABS: VIEW / ADMIN / RECORD -------------------
-# Admin tab hidden until password is entered
 admin_visible = False
-pw_input = st.text_input("Enter admin password to unlock editor:", type="password", key="pw_input")
-if ADMIN_PASSWORD and pw_input == ADMIN_PASSWORD:
+if ADMIN_PASSWORD and 'pw_input' in st.session_state and st.session_state['pw_input'] == ADMIN_PASSWORD:
     admin_visible = True
 
 tab_labels = [I18N[lang]['latest']]
@@ -232,33 +238,46 @@ tab_labels.append("Record")
 
 tabs = st.tabs(tab_labels)
 
-# ----------------------------- TAB 1: Latest (read-only) ---------------------
+# ---------- TAB 1: Latest (read-only) -------------------------------------
 with tabs[0]:
     st.subheader(I18N[lang]["latest"])
     if df.empty:
         st.info(I18N[lang]["empty"])
     else:
+        # Filtrar por idioma y publicadas
         dfx = df[(df["published"] == True) & (df["language"].str.lower() == lang)].copy()
         if dfx.empty:
             st.info(I18N[lang]["empty"])
         else:
             latest = dfx.iloc[0]
+
+            # Columnas: contenido principal y métricas
             c1, c2 = st.columns([3, 1])
             with c1:
+                # Badge de idioma
                 st.markdown(f"<span class='badge'>{latest['language'].upper()}</span>", unsafe_allow_html=True)
+
+                # Título
                 st.markdown(f"## {latest['title']}")
+
+                # Fecha
                 if pd.notna(latest.get("date")):
                     st.markdown(f"<div class='meta'>{latest['date'].strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
+
+                # Contenido con fondo y color de texto legible en modo nocturno
                 content = latest.get("content_md", "")
                 content = content.replace("’", "'").replace("“", '"').replace("”", '"')
                 st.markdown(
-                    f"<div style='background-color:#f3f4f6; color:#111827; padding:1rem; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,.04); line-height:1.5;'>{content}</div>",
+                    f"<div style='background-color:#f3f4f6; color:#111827; padding:1rem; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,.04); line-height:1.5;'>"
+                    f"{content}</div>",
                     unsafe_allow_html=True
                 )
+
             with c2:
+                # Solo mostrar publicado
                 st.metric(I18N[lang]["published"], "✅")
 
-# ----------------------------- TAB 2: Admin (password + editor) ----------------
+# ---------- TAB 2: Admin (password + editor) -------------------------------
 if admin_visible:
     with tabs[1]:
         st.subheader("Admin — Create / Edit editions")
@@ -299,13 +318,15 @@ if admin_visible:
             else:
                 st.success("Edition saved locally (editions.csv). Consider configuring GitHub for remote persistence.")
 
-# ----------------------------- TAB 3: Record (history + downloads) -------------
-with tabs[-1]:
+# ---------- TAB 3: Record (history + downloads) ----------------------------
+tab_record_index = -1 if admin_visible else 1
+with tabs[tab_record_index]:
     st.subheader("📊 Record — All editions")
     if df.empty:
         st.info("No editions available.")
     else:
-        q = st.text_input("Search titles/content...", value="", key="search_record")
+        # 🔍 Buscador
+        q = st.text_input("Search titles/content...", value="")
         dfa = df.copy()
         if q:
             ql = q.lower().strip()
@@ -313,6 +334,8 @@ with tabs[-1]:
                 dfa["title"].astype(str).str.lower().str.contains(ql)
                 | dfa["content_md"].astype(str).str.lower().str.contains(ql)
             ]
+
+        # 🎴 Mostrar cada edición como tarjeta con estilo deportivo
         sports_emojis = ["⚽", "🏀", "🏈", "🎾", "🏐", "🏒", "🥊", "🏓"]
         for i, (_, row) in enumerate(dfa.iterrows()):
             emoji = sports_emojis[i % len(sports_emojis)]
@@ -328,6 +351,8 @@ with tabs[-1]:
                 """,
                 unsafe_allow_html=True,
             )
+
+        # 📥 Descargas
         csv_bytes = dfa.to_csv(index=False).encode("utf-8")
         st.download_button(
             "⬇️ Download CSV (filtered)",
@@ -335,11 +360,11 @@ with tabs[-1]:
             file_name="editions_export.csv",
             mime="text/csv",
         )
+
         sel = st.selectbox(
             "Download single edition (ID)",
             options=list(dfa["edition_id"].astype(str)),
             index=0,
-            key="single_download"
         )
         if sel:
             sel_row = dfa[dfa["edition_id"].astype(str) == sel].iloc[0]
