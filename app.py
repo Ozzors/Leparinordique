@@ -207,7 +207,8 @@ with st.sidebar:
         "Language / Langue",
         options=["fr", "en"],
         index=1,
-        format_func=lambda x: "Français" if x == "fr" else "English"
+        format_func=lambda x: "Français" if x == "fr" else "English",
+        key="lang_selector"
     )
     if st.button("Refresh data", use_container_width=True):
         load_editions_from_github.clear()
