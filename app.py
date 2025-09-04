@@ -187,8 +187,8 @@ with st.sidebar:
     st.caption("Admin editor — saves to GitHub or local CSV")
 
     lang = st.radio("Language / Langue", options=["fr", "en"], index=1, format_func=lambda x: "Français" if x == "fr" else "English")
-    if st.button("Refresh data", use_container_width=True):
-        load_editions_from_github.clear()
+    if st.button("Refresh data", use_container_width=True, key="refresh_button"):
+    load_editions_from_github.clear()
 
 # ----------------------------- ADMIN TAB PROTECTION --------------------------
 if "is_admin" not in st.session_state:
