@@ -6,7 +6,6 @@ import io
 import time
 from datetime import datetime, date
 from typing import Optional, Tuple
-
 import pandas as pd
 import requests
 import streamlit as st
@@ -191,6 +190,46 @@ with st.sidebar:
     if st.button("Refresh data", use_container_width=True):
         load_editions_from_github.clear()
 
+# ----------------------------- ADMIN TAB PROTECTION --------------------------
+if "is_admin" not in st.session_state:
+    st.session_state["is_admin"] = False
+if "show_pwd" not in st.session_state:
+    st.session_state["show_pwd"] = False
+
+with st.sidebar:
+    if LOGO_URL:
+        st.image(LOGO_URL, width=150)
+    st.markdown("<div class='kicker'>Newsletter</div>", unsafe_allow_html=True)
+    st.title("Le Pari Nordique 🏅")
+    st.caption("Admin editor — saves to GitHub or local CSV")
+
+    lang = st.radio(
+        "Language / Langue",
+        options=["fr", "en"],
+        index=1,
+        format_func=lambda x: "Français" if x == "fr" else "English"
+    )
+    if st.button("Refresh data", use_container_width=True):
+        load_editions_from_github.clear()
+
+    # 🔒 Admin unlock
+    if not st.session_state["is_admin"]:
+        if not st.session_state["show_pwd"]:
+            if st.button("⚙️ Unlock Admin"):
+                st.session_state["show_pwd"] = True
+        else:
+            pwd = st.text_input("Enter admin password:", type="password")
+            if pwd == ADMIN_PASSWORD:
+                st.session_state["is_admin"] = True
+                st.session_state["show_pwd"] = False
+                st.success("✅ Admin mode unlocked")
+            elif pwd:
+                st.error("❌ Wrong password")
+    else:
+        st.success("✅ Admin mode active")
+        if st.button("🔒 Lock Admin"):
+            st.session_state["is_admin"] = False
+
 # ----------------------------- MAIN LOGO -------------------------------------
 if LOGO_URL:
     st.markdown(
@@ -215,7 +254,11 @@ else:
 st.caption(f"{I18N[lang]['last_sync']}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 # ----------------------------- TABS: VIEW / ADMIN / RECORD -------------------
-tabs = st.tabs([I18N[lang]['latest'], "Admin", "Record"])
+tab_names = [I18N[lang]['latest'], "Record"]
+if st.session_state["is_admin"]:
+    tab_names.insert(1, "Admin")  # aparece solo si está desbloqueado
+
+tabs = st.tabs(tab_names)
 
 
 # ---------- TAB 1: Latest (read-only) -------------------------------------
