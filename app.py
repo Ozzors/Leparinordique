@@ -276,17 +276,16 @@ with tabs[0]:
                 )
 
                 # Imagen decorativa debajo del texto
-                st.markdown(
-                    f"""
-                    <div style="background-color:#f3f4f6; padding:0.5rem; border-radius:16px;
-                                box-shadow:0 2px 12px rgba(0,0,0,.04); text-align:center; margin-top:1rem;">
-                        <img src="https://raw.githubusercontent.com/Ozzors/Leparinordique/main/assets/Screenshot%202025-09-05%20135650.png"
-                             style="max-width:100%; border-radius:12px;">
-                        <div style="font-size:0.85rem; color:#374151; margin-top:0.5rem;">Latest bets</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+               st.markdown(
+                f"""
+                <div style="text-align:center; margin-top:1rem;">
+                    <img src="https://raw.githubusercontent.com/Ozzors/Leparinordique/main/assets/Screenshot%202025-09-05%20135650.png"
+                         style="max-width:50%; border-radius:12px;">
+                    <div style="font-size:0.85rem; color:#374151; margin-top:0.5rem;">Latest bets</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
             with c2:
                 # Solo mostrar publicado
