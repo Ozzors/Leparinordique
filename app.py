@@ -208,12 +208,16 @@ with st.sidebar:
 if LOGO_URL:
     st.markdown(
         f"""
-        <div style='text-align: center; margin-bottom: 1rem;'>
+        <div style='text-align: center; margin-bottom: 0.5rem;'>
             <img src="{LOGO_URL}" width="300px" style="border-radius:12px;" />
+        </div>
+        <div style='text-align: center; font-size:0.9rem; color:#6b7280; margin-bottom:1rem;'>
+            Contact: <a href="mailto:Leparinordique@parisportifquebecc.wine" style="color:#6b7280;">Leparinordique@parisportifquebecc.wine</a>
         </div>
         """,
         unsafe_allow_html=True
     )
+
 
 # ----------------------------- LOAD DATA ------------------------------------
 if GITHUB_TOKEN and GITHUB_REPO:
