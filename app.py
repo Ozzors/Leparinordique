@@ -268,8 +268,22 @@ with tabs[0]:
                 content = latest.get("content_md", "")
                 content = content.replace("’", "'").replace("“", '"').replace("”", '"')
                 st.markdown(
-                    f"<div style='background-color:#f3f4f6; color:#111827; padding:1rem; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,.04); line-height:1.5;'>"
+                    f"<div style='background-color:#f3f4f6; color:#111827; padding:1rem; border-radius:16px; "
+                    f"box-shadow:0 2px 12px rgba(0,0,0,.04); line-height:1.5; margin-bottom:1rem;'>"
                     f"{content}</div>",
+                    unsafe_allow_html=True
+                )
+
+                # Imagen con estilo similar
+                st.markdown(
+                    f"""
+                    <div style="background-color:#f3f4f6; padding:0.5rem; border-radius:16px;
+                                box-shadow:0 2px 12px rgba(0,0,0,.04); text-align:center;">
+                        <img src="{GITHUB_LOGO_DIR}Screenshot 2025-09-05 135650.png"
+                             style="max-width:100%; border-radius:12px;">
+                        <div style="font-size:0.85rem; color:#374151; margin-top:0.5rem;">Latest bets</div>
+                    </div>
+                    """,
                     unsafe_allow_html=True
                 )
 
