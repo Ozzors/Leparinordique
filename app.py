@@ -262,24 +262,25 @@ with tabs[0]:
 
                 # Fecha
                 if pd.notna(latest.get("date")):
-                    st.markdown(f"<div class='meta'>{latest['date'].strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
+                    st.markdown(
+                        f"<div class='meta'>{latest['date'].strftime('%Y-%m-%d')}</div>",
+                        unsafe_allow_html=True
+                    )
 
-                # Contenido con fondo y color de texto legible en modo nocturno
+                # Contenido, reemplazando caracteres problemáticos
                 content = latest.get("content_md", "")
                 content = content.replace("’", "'").replace("“", '"').replace("”", '"')
                 st.markdown(
-                    f"<div style='background-color:#f3f4f6; color:#111827; padding:1rem; border-radius:16px; "
-                    f"box-shadow:0 2px 12px rgba(0,0,0,.04); line-height:1.5; margin-bottom:1rem;'>"
-                    f"{content}</div>",
+                    f"<div style='color:#111827; line-height:1.6;'>{content}</div>",
                     unsafe_allow_html=True
                 )
 
-                # Imagen con estilo similar
+                # Imagen decorativa debajo del texto
                 st.markdown(
                     f"""
                     <div style="background-color:#f3f4f6; padding:0.5rem; border-radius:16px;
-                                box-shadow:0 2px 12px rgba(0,0,0,.04); text-align:center;">
-                        <img src="{GITHUB_LOGO_DIR}Screenshot 2025-09-05 135650.png"
+                                box-shadow:0 2px 12px rgba(0,0,0,.04); text-align:center; margin-top:1rem;">
+                        <img src="https://raw.githubusercontent.com/Ozzors/Leparinordique/main/assets/Screenshot%202025-09-05%20135650.png"
                              style="max-width:100%; border-radius:12px;">
                         <div style="font-size:0.85rem; color:#374151; margin-top:0.5rem;">Latest bets</div>
                     </div>
@@ -290,6 +291,7 @@ with tabs[0]:
             with c2:
                 # Solo mostrar publicado
                 st.metric(I18N[lang]["published"], "✅")
+
 
 # ---------- TAB 2: Admin (password + editor) -------------------------------
 if admin_visible:
