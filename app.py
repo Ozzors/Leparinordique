@@ -262,30 +262,30 @@ with tabs[0]:
 
                 # Fecha
                 if pd.notna(latest.get("date")):
-                    st.markdown(
-                        f"<div class='meta'>{latest['date'].strftime('%Y-%m-%d')}</div>",
-                        unsafe_allow_html=True
-                    )
+                    st.markdown(f"<div class='meta'>{latest['date'].strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
 
                 # Contenido, reemplazando caracteres problemáticos
                 content = latest.get("content_md", "")
                 content = content.replace("’", "'").replace("“", '"').replace("”", '"')
                 st.markdown(
-                    f"<div style='color:#111827; line-height:1.6;'>{content}</div>",
+                    f"""
+                    <div style="background-color:#f3f4f6; padding:1rem; border-radius:10px; color:#111827;">
+                        {content}
+                    </div>
+                    """,
                     unsafe_allow_html=True
                 )
 
-                # Imagen decorativa debajo del texto
-               st.markdown(
-                f"""
-                <div style="text-align:center; margin-top:1rem;">
-                    <img src="https://raw.githubusercontent.com/Ozzors/Leparinordique/main/assets/Screenshot%202025-09-05%20135650.png"
-                         style="max-width:50%; border-radius:12px;">
-                    <div style="font-size:0.85rem; color:#374151; margin-top:0.5rem;">Latest bets</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+                # Imagen decorativa debajo del texto (reducida y sin fondo)
+                st.markdown(
+                    f"""
+                    <div style="text-align:center; margin-top:1rem;">
+                        <img src="https://raw.githubusercontent.com/Ozzors/Leparinordique/main/assets/Screenshot%202025-09-05%20135650.png"
+                             style="max-width:50%; border-radius:12px;">
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
             with c2:
                 # Solo mostrar publicado
