@@ -11,7 +11,6 @@ import pandas as pd
 import requests
 import streamlit as st
 import base64
-from datetime import date
 
 # ----------------------------- PAGE CONFIG & THEME ---------------------------
 st.set_page_config(page_title="Le Pari Nordique – Newsletter (Admin)", page_icon="🏅", layout="wide")
@@ -157,7 +156,6 @@ def load_editions_from_github() -> Tuple[pd.DataFrame, Optional[str]]:
     except Exception:
         pass
     df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])
-    # sort by date desc, then edition_id desc
     df = df.sort_values(["date", "edition_id"], ascending=[False, False], na_position="last").reset_index(drop=True)
     return df, sha
 
@@ -195,7 +193,6 @@ with st.sidebar:
     st.title("Le Pari Nordique 🏅")
     st.caption("Admin editor — saves to GitHub or local CSV")
 
-    # Idioma
     lang = st.radio(
         "Language / Langue",
         options=["fr", "en"],
@@ -204,15 +201,12 @@ with st.sidebar:
         key="lang_radio"
     )
 
-    # Botón de refresh
     if st.button("Refresh data", use_container_width=True, key="refresh_button"):
         load_editions_from_github.clear()
 
-    # Ícono discreto para admin (toggle del login)
     if st.button("⚙️", key="admin_icon"):
         st.session_state["show_admin_login"] = not st.session_state["show_admin_login"]
 
-    # Área de login (solo si está abierta y aún no es admin)
     if st.session_state["show_admin_login"] and not st.session_state["is_admin"]:
         with st.expander("Admin login", expanded=True):
             st.text_input("Enter admin password:", type="password", key="pw_input")
@@ -225,13 +219,40 @@ with st.sidebar:
                 else:
                     st.error("Wrong password")
 
-# ----------------------------- MAIN LOGO -------------------------------------
+# ----------------------------- MAIN LOGO + BILINGUAL BANNER ---------------------
 if LOGO_URL:
     st.markdown(
         f"""
-        <div style='text-align: center; margin-bottom: 0.5rem;'>
-            <img src="{LOGO_URL}" width="300px" style="border-radius:12px;" />
+        <div style="
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 15px;
+        ">
+            <div style='flex: 0 0 auto; text-align:center;'>
+                <img src="{LOGO_URL}" width="150" style="border-radius:12px;" />
+            </div>
+
+            <div style="
+                flex: 1 1 auto;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                padding:8px 12px;
+                border-radius:12px;
+                font-size:14px;
+                font-weight:bold;
+                background: linear-gradient(90deg, #1e3c72, #2a5298);
+                color: #FFD700;
+                box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+                text-align:center;
+            ">
+                📅 Publishes twice a week / Publié deux fois par semaine ⚽🔥
+            </div>
         </div>
+
         <div style='text-align: center; font-size:0.9rem; color:#6b7280; margin-bottom:1rem;'>
             Contact: <a href="mailto:Leparinordique@parisportifquebecc.wine" style="color:#6b7280;">Leparinordique@parisportifquebecc.wine</a>
         </div>
@@ -251,7 +272,6 @@ else:
 st.caption(f"{I18N[lang]['last_sync']}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 # ----------------------------- TABS: VIEW / ADMIN / RECORD -------------------
-# Compatibilidad hacia atrás: si ya había pw correcta, eleva a is_admin
 if not st.session_state["is_admin"] and ADMIN_PASSWORD and st.session_state.get("pw_input") == ADMIN_PASSWORD:
     st.session_state["is_admin"] = True
 
@@ -270,27 +290,17 @@ with tabs[0]:
     if df.empty:
         st.info(I18N[lang]["empty"])
     else:
-        # Filtrar por idioma y publicadas
         dfx = df[(df["published"] == True) & (df["language"].str.lower() == lang)].copy()
         if dfx.empty:
             st.info(I18N[lang]["empty"])
         else:
             latest = dfx.iloc[0]
-
-            # Columnas: contenido principal y métricas
             c1, c2 = st.columns([3, 1])
             with c1:
-                # Badge de idioma
                 st.markdown(f"<span class='badge'>{latest['language'].upper()}</span>", unsafe_allow_html=True)
-
-                # Título
                 st.markdown(f"## {latest['title']}")
-
-                # Fecha
                 if pd.notna(latest.get("date")):
                     st.markdown(f"<div class='meta'>{latest['date'].strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
-
-                # Contenido, reemplazando caracteres problemáticos
                 content = latest.get("content_md", "")
                 content = content.replace("’", "'").replace("“", '"').replace("”", '"')
                 st.markdown(
@@ -301,8 +311,6 @@ with tabs[0]:
                     """,
                     unsafe_allow_html=True
                 )
-
-                # Imagen decorativa debajo del texto (más pequeña)
                 st.markdown(
                     f"""
                     <div style="text-align:center; margin-top:1rem;">
@@ -312,17 +320,13 @@ with tabs[0]:
                     """,
                     unsafe_allow_html=True
                 )
-
             with c2:
-                # Solo mostrar publicado
                 st.metric(I18N[lang]["published"], "✅")
 
 # ---------- TAB 2: Admin (password + editor) -------------------------------
 if admin_visible:
     with tabs[1]:
         st.subheader("Admin — Create / Edit editions")
-
-        # Si hay una pregunta pendiente de "¿permanecer como admin?" muéstrala arriba
         if st.session_state["admin_ask_stay"]:
             st.success("Edition saved and uploaded to GitHub ✅")
             st.info("Do you want to stay in admin mode?")
@@ -335,14 +339,13 @@ if admin_visible:
                 if st.button("Exit admin", key="exit_admin_btn"):
                     st.session_state["admin_ask_stay"] = False
                     st.session_state["is_admin"] = False
-                    # Limpia el valor del input para evitar re-entrada automática
                     if "pw_input" in st.session_state:
                         st.session_state["pw_input"] = ""
                     st.rerun()
-
         with st.form("editor_form"):
             col1, col2 = st.columns([1, 3])
             with col1:
+                # <- Fecha por defecto en el admin (hoy)
                 d = st.date_input("Date", value=date.today())
                 language_field = st.selectbox("Language", options=["en", "fr"], index=0)
                 published_field = st.checkbox("Published", value=True)
@@ -350,7 +353,6 @@ if admin_visible:
                 title_field = st.text_input("Title")
                 content_field = st.text_area("Content (Markdown)", height=300)
             submitted = st.form_submit_button("Save edition")
-
         if submitted:
             edition_id = f"{d.strftime('%Y%m%d')}-{language_field}-{int(time.time())}"
             new_row = {
@@ -365,15 +367,11 @@ if admin_visible:
                 new_df = pd.DataFrame([new_row])
             else:
                 new_df = pd.concat([pd.DataFrame([new_row]), df], ignore_index=True)
-
-            # Guardar local siempre
             save_editions_local(new_df)
-
             if GITHUB_TOKEN and GITHUB_REPO:
                 with st.spinner("Saving to GitHub..."):
                     res = save_editions_to_github(new_df, gh_sha)
                     if res:
-                        # Recarga datos y muestra prompt para permanecer/salir
                         load_editions_from_github.clear()
                         df, gh_sha = load_editions_from_github()
                         st.session_state["admin_ask_stay"] = True
@@ -392,7 +390,6 @@ with tabs[tab_record_index]:
     if df.empty:
         st.info("No editions available.")
     else:
-        # 🔍 Buscador
         q = st.text_input("Search titles/content...", value="")
         dfa = df.copy()
         if q:
@@ -401,8 +398,6 @@ with tabs[tab_record_index]:
                 dfa["title"].astype(str).str.lower().str.contains(ql)
                 | dfa["content_md"].astype(str).str.lower().str.contains(ql)
             ]
-
-        # 🎴 Tarjetas
         sports_emojis = ["⚽", "🏀", "🏈", "🎾", "🏐", "🏒", "🥊", "🏓"]
         for i, (_, row) in enumerate(dfa.iterrows()):
             emoji = sports_emojis[i % len(sports_emojis)]
@@ -418,8 +413,6 @@ with tabs[tab_record_index]:
                 """,
                 unsafe_allow_html=True,
             )
-
-        # 📥 Descargas
         csv_bytes = dfa.to_csv(index=False).encode("utf-8")
         st.download_button(
             "⬇️ Download CSV (filtered)",
@@ -427,7 +420,6 @@ with tabs[tab_record_index]:
             file_name="editions_export.csv",
             mime="text/csv",
         )
-
         sel = st.selectbox(
             "Download single edition (ID)",
             options=list(dfa["edition_id"].astype(str)),
@@ -445,4 +437,3 @@ with tabs[tab_record_index]:
 
 # ----------------------------- FOOTER --------------------------------------
 st.caption("© " + str(datetime.now().year) + " Le Pari Nordique — Built with Streamlit")
-
