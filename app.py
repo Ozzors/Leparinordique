@@ -80,6 +80,14 @@ ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", "").strip()
 
 LOCAL_CSV = "editions.csv"
 
+# ----------------------------- SESSION STATE (admin persist + prompt) --------
+if "is_admin" not in st.session_state:
+    st.session_state["is_admin"] = False
+if "show_admin_login" not in st.session_state:
+    st.session_state["show_admin_login"] = False
+if "admin_ask_stay" not in st.session_state:
+    st.session_state["admin_ask_stay"] = False
+
 # ----------------------------- GITHUB HELPERS --------------------------------
 def _gh_headers(token: str) -> dict:
     return {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
@@ -147,9 +155,9 @@ def load_editions_from_github() -> Tuple[pd.DataFrame, Optional[str]]:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
     except Exception:
         pass
-    df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])    
+    df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])
+    # sort by date desc, then edition_id desc
     df = df.sort_values(["date", "edition_id"], ascending=[False, False], na_position="last").reset_index(drop=True)
-
     return df, sha
 
 def load_editions_local() -> pd.DataFrame:
@@ -163,7 +171,7 @@ def load_editions_local() -> pd.DataFrame:
                 df["date"] = pd.to_datetime(df["date"], errors="coerce")
             except Exception:
                 pass
-            df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])    
+            df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])
             return df.sort_values("date", ascending=False, na_position="last").reset_index(drop=True)
         except Exception as e:
             st.error(f"Failed to read local CSV: {e}")
@@ -199,11 +207,22 @@ with st.sidebar:
     if st.button("Refresh data", use_container_width=True, key="refresh_button"):
         load_editions_from_github.clear()
 
-    # Ícono discreto para admin
-    show_admin_expander = st.button("⚙️", key="admin_icon")
-    if show_admin_expander:
+    # Ícono discreto para admin (toggle del login)
+    if st.button("⚙️", key="admin_icon"):
+        st.session_state["show_admin_login"] = not st.session_state["show_admin_login"]
+
+    # Área de login (solo si está abierta y aún no es admin)
+    if st.session_state["show_admin_login"] and not st.session_state["is_admin"]:
         with st.expander("Admin login", expanded=True):
-            pw_input = st.text_input("Enter admin password:", type="password", key="pw_input")
+            st.text_input("Enter admin password:", type="password", key="pw_input")
+            if st.button("Login", key="login_btn"):
+                if ADMIN_PASSWORD and st.session_state.get("pw_input") == ADMIN_PASSWORD:
+                    st.session_state["is_admin"] = True
+                    st.session_state["show_admin_login"] = False
+                    st.success("Admin mode enabled")
+                    st.rerun()
+                else:
+                    st.error("Wrong password")
 
 # ----------------------------- MAIN LOGO -------------------------------------
 if LOGO_URL:
@@ -219,7 +238,6 @@ if LOGO_URL:
         unsafe_allow_html=True
     )
 
-
 # ----------------------------- LOAD DATA ------------------------------------
 if GITHUB_TOKEN and GITHUB_REPO:
     df, gh_sha = load_editions_from_github()
@@ -232,9 +250,11 @@ else:
 st.caption(f"{I18N[lang]['last_sync']}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 # ----------------------------- TABS: VIEW / ADMIN / RECORD -------------------
-admin_visible = False
-if ADMIN_PASSWORD and 'pw_input' in st.session_state and st.session_state['pw_input'] == ADMIN_PASSWORD:
-    admin_visible = True
+# Compatibilidad hacia atrás: si ya había pw correcta, eleva a is_admin
+if not st.session_state["is_admin"] and ADMIN_PASSWORD and st.session_state.get("pw_input") == ADMIN_PASSWORD:
+    st.session_state["is_admin"] = True
+
+admin_visible = st.session_state["is_admin"]
 
 tab_labels = [I18N[lang]['latest']]
 if admin_visible:
@@ -281,7 +301,7 @@ with tabs[0]:
                     unsafe_allow_html=True
                 )
 
-                # Imagen decorativa debajo del texto (más pequeña todavía)
+                # Imagen decorativa debajo del texto (más pequeña)
                 st.markdown(
                     f"""
                     <div style="text-align:center; margin-top:1rem;">
@@ -296,11 +316,29 @@ with tabs[0]:
                 # Solo mostrar publicado
                 st.metric(I18N[lang]["published"], "✅")
 
-
 # ---------- TAB 2: Admin (password + editor) -------------------------------
 if admin_visible:
     with tabs[1]:
         st.subheader("Admin — Create / Edit editions")
+
+        # Si hay una pregunta pendiente de "¿permanecer como admin?" muéstrala arriba
+        if st.session_state["admin_ask_stay"]:
+            st.success("Edition saved and uploaded to GitHub ✅")
+            st.info("Do you want to stay in admin mode?")
+            col_a, col_b = st.columns(2)
+            with col_a:
+                if st.button("Stay admin", key="stay_admin_btn"):
+                    st.session_state["admin_ask_stay"] = False
+                    st.rerun()
+            with col_b:
+                if st.button("Exit admin", key="exit_admin_btn"):
+                    st.session_state["admin_ask_stay"] = False
+                    st.session_state["is_admin"] = False
+                    # Limpia el valor del input para evitar re-entrada automática
+                    if "pw_input" in st.session_state:
+                        st.session_state["pw_input"] = ""
+                    st.rerun()
+
         with st.form("editor_form"):
             col1, col2 = st.columns([1, 3])
             with col1:
@@ -311,6 +349,7 @@ if admin_visible:
                 title_field = st.text_input("Title")
                 content_field = st.text_area("Content (Markdown)", height=300)
             submitted = st.form_submit_button("Save edition")
+
         if submitted:
             edition_id = f"{d.strftime('%Y%m%d')}-{language_field}-{int(time.time())}"
             new_row = {
@@ -325,18 +364,25 @@ if admin_visible:
                 new_df = pd.DataFrame([new_row])
             else:
                 new_df = pd.concat([pd.DataFrame([new_row]), df], ignore_index=True)
+
+            # Guardar local siempre
             save_editions_local(new_df)
+
             if GITHUB_TOKEN and GITHUB_REPO:
                 with st.spinner("Saving to GitHub..."):
                     res = save_editions_to_github(new_df, gh_sha)
                     if res:
-                        st.success("Edition saved and uploaded to GitHub ✅")
+                        # Recarga datos y muestra prompt para permanecer/salir
                         load_editions_from_github.clear()
                         df, gh_sha = load_editions_from_github()
+                        st.session_state["admin_ask_stay"] = True
+                        st.rerun()
                     else:
                         st.error("Failed to save to GitHub — check logs and secrets.")
             else:
-                st.success("Edition saved locally (editions.csv). Consider configuring GitHub for remote persistence.")
+                st.success("Edition saved locally (editions.csv).")
+                st.session_state["admin_ask_stay"] = True
+                st.rerun()
 
 # ---------- TAB 3: Record (history + downloads) ----------------------------
 tab_record_index = -1 if admin_visible else 1
@@ -355,7 +401,7 @@ with tabs[tab_record_index]:
                 | dfa["content_md"].astype(str).str.lower().str.contains(ql)
             ]
 
-        # 🎴 Mostrar cada edición como tarjeta con estilo deportivo
+        # 🎴 Tarjetas
         sports_emojis = ["⚽", "🏀", "🏈", "🎾", "🏐", "🏒", "🥊", "🏓"]
         for i, (_, row) in enumerate(dfa.iterrows()):
             emoji = sports_emojis[i % len(sports_emojis)]
@@ -398,3 +444,4 @@ with tabs[tab_record_index]:
 
 # ----------------------------- FOOTER --------------------------------------
 st.caption("© " + str(datetime.now().year) + " Le Pari Nordique — Built with Streamlit")
+
