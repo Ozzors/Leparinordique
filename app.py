@@ -222,18 +222,27 @@ with st.sidebar:
 
 # ----------------------------- MAIN LOGO + BILINGUAL BANNER ---------------------
 if LOGO_URL:
-    col0, col1, col2 = st.columns([1,3,2], gap="small")  # col0 es espaciador
-    with col1:
-        st.image(LOGO_URL, width=250)  # logo centrado en su columna
-    with col2:
-        st.markdown(
-            """
+    # Logo centrado
+    st.markdown(
+        f"""
+        <div style='text-align: center; margin-bottom: 10px;'>
+            <img src="{LOGO_URL}" width="250" style="border-radius:12px;" />
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Banner a la derecha
+    st.markdown(
+        """
+        <div style='display:flex; justify-content:flex-end; margin-bottom:15px;'>
             <div style="display:flex; align-items:center; justify-content:center; padding:10px 16px; border-radius:12px; font-size:16px; font-weight:bold; background: linear-gradient(90deg, #1e3c72, #2a5298); color: #FFD700; box-shadow: 0 3px 5px rgba(0,0,0,0.2); text-align:center;">
                 📅 Publishes twice a week / Publié deux fois par semaine ⚽🔥
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     # Contact debajo
     st.markdown(
