@@ -353,7 +353,7 @@ with tabs[0]:
                     f"""
                     <div style="text-align:center; margin-top:1rem;">
                         <img src="https://raw.githubusercontent.com/Ozzors/Leparinordique/main/assets/Screenshot%202025-09-05%20135650.png"
-                             style="max-width:25%; border-radius:12px;">
+                             style="max-width:50%; border-radius:12px;">
                     </div>
                     """,
                     unsafe_allow_html=True
