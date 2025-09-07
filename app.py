@@ -234,7 +234,7 @@ if LOGO_URL:
         st.markdown(
             f"""
             <div style='text-align: left; margin-bottom: 10px;'>
-                <img src="{LOGO_URL}" width="325" style="border-radius:12px;" />
+                <img src="{LOGO_URL}" width="425" style="border-radius:12px;" />
             </div>
             """,
             unsafe_allow_html=True
