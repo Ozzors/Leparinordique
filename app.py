@@ -220,39 +220,47 @@ with st.sidebar:
                     st.error("Wrong password")
 
 
-# ----------------------------- MAIN LOGO + BILINGUAL BANNER ---------------------
+# ----------------------------- MAIN LOGO + BILINGUAL BANNER + NEW IMAGE ---------------------
 if LOGO_URL:
-    # Logo centrado y más grande
-    st.markdown(
-        f"""
-        <div style='text-align: center; margin-bottom: 10px;'>
-            <img src="{LOGO_URL}" width="325" style="border-radius:12px;" />
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # Banner a la derecha, subido un poco
-    st.markdown(
-        """
-        <div style='display:flex; justify-content:flex-end; margin-bottom:15px; margin-top:-150px;'>
-            <div style="display:flex; align-items:center; justify-content:center; padding:10px 16px; border-radius:12px; font-size:16px; font-weight:bold; background: linear-gradient(90deg, #1e3c72, #2a5298); color: #FFD700; box-shadow: 0 3px 5px rgba(0,0,0,0.2); text-align:center;">
-                📅 Publishes twice a week / Publié deux fois par semaine ⚽🔥
+    # Columnas: nueva imagen a la izquierda, logo principal a la derecha
+    col_left, col_right = st.columns([1, 3])
+    with col_left:
+        st.image(
+            "https://raw.githubusercontent.com/Ozzors/Leparinordique/main/assets/ChatGPT%20Image%20Sep%206%2C%202025%2C%2010_34_03%20PM.png",
+            width=100,
+        )
+    with col_right:
+        # Logo centrado a la izquierda de la columna
+        st.markdown(
+            f"""
+            <div style='text-align: left; margin-bottom: 10px;'>
+                <img src="{LOGO_URL}" width="325" style="border-radius:12px;" />
             </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+            """,
+            unsafe_allow_html=True
+        )
 
-    # Contact debajo
-    st.markdown(
-        """
-        <div style='text-align: center; font-size:0.9rem; color:#6b7280; margin-bottom:1rem;'>
-            Contact: <a href='mailto:Leparinordique@parisportifquebecc.wine' style='color:#6b7280;'>Leparinordique@parisportifquebecc.wine</a>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+        # Banner a la derecha, subido un poco
+        st.markdown(
+            """
+            <div style='display:flex; justify-content:flex-end; margin-bottom:15px; margin-top:-150px;'>
+                <div style="display:flex; align-items:center; justify-content:center; padding:10px 16px; border-radius:12px; font-size:16px; font-weight:bold; background: linear-gradient(90deg, #1e3c72, #2a5298); color: #FFD700; box-shadow: 0 3px 5px rgba(0,0,0,0.2); text-align:center;">
+                    📅 Publishes twice a week / Publié deux fois par semaine ⚽🔥
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        # Contact debajo
+        st.markdown(
+            """
+            <div style='text-align: left; font-size:0.9rem; color:#6b7280; margin-bottom:1rem;'>
+                Contact: <a href='mailto:Leparinordique@parisportifquebecc.wine' style='color:#6b7280;'>Leparinordique@parisportifquebecc.wine</a>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 # ----------------------------- LOAD DATA ------------------------------------
 if GITHUB_TOKEN and GITHUB_REPO:
     df, gh_sha = load_editions_from_github()
