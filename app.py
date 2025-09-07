@@ -148,7 +148,8 @@ def load_editions_from_github() -> Tuple[pd.DataFrame, Optional[str]]:
     except Exception:
         pass
     df["published"] = df["published"].astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "oui"])    
-    df = df.sort_values("date", ascending=False, na_position="last").reset_index(drop=True)
+    df = df.sort_values(["date", "edition_id"], ascending=[False, False], na_position="last").reset_index(drop=True)
+
     return df, sha
 
 def load_editions_local() -> pd.DataFrame:
