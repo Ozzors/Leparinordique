@@ -191,7 +191,7 @@ with st.sidebar:
         st.image(LOGO_URL, width=150)
     st.markdown("<div class='kicker'>Newsletter</div>", unsafe_allow_html=True)
     st.title("Le Pari Nordique 🏅")
-    st.caption("Admin editor — saves to GitHub or local CSV")
+    #st.caption("Admin editor — saves to GitHub or local CSV")
 
     lang = st.radio(
         "Language / Langue",
