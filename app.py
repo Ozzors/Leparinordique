@@ -11,6 +11,7 @@ import pandas as pd
 import requests
 import streamlit as st
 import base64
+from datetime import date
 
 # ----------------------------- PAGE CONFIG & THEME ---------------------------
 st.set_page_config(page_title="Le Pari Nordique – Newsletter (Admin)", page_icon="🏅", layout="wide")
