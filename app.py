@@ -220,47 +220,84 @@ with st.sidebar:
                     st.error("Wrong password")
 
 
-# ----------------------------- MAIN LOGO + BILINGUAL BANNER + NEW IMAGE ---------------------
+# ----------------------------- MAIN LOGO + BILINGUAL BANNER + NEW IMAGE (RESPONSIVE) ---------------------
 if LOGO_URL:
-    # Columnas: nueva imagen a la izquierda, logo principal a la derecha
-    col_left, col_right = st.columns([1, 3])
-    with col_left:
-        st.image(
-            "https://raw.githubusercontent.com/Ozzors/Leparinordique/main/assets/ChatGPT%20Image%20Sep%206%2C%202025%2C%2010_34_03%20PM.png",
-            width=300,
-        )
-    with col_right:
-        # Logo centrado a la izquierda de la columna
-        st.markdown(
-            f"""
-            <div style='text-align: left; margin-bottom: 10px;'>
-                <img src="{LOGO_URL}" width="425" style="border-radius:12px;" />
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+    st.markdown(
+        f"""
+        <style>
+        /* Contenedor de imagen y logo */
+        .logo-container {{
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 10px;
+        }}
+        .logo-container img.logo-main {{
+            width: 425px;
+            border-radius: 12px;
+            margin-left: 10px;
+        }}
+        .logo-container img.logo-side {{
+            width: 50%;
+            max-width: 200px;
+            border-radius: 12px;
+        }}
+        /* Banner responsive */
+        .banner {{
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }}
+        .banner div {{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            background: linear-gradient(90deg, #1e3c72, #2a5298);
+            color: #FFD700;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+            text-align: center;
+            margin-top: 10px;
+        }}
+        @media (max-width: 768px) {{
+            .logo-container {{
+                flex-direction: column;
+                align-items: center;
+            }}
+            .logo-container img.logo-main {{
+                width: 80%;
+                margin-left: 0;
+                margin-top: 10px;
+            }}
+            .logo-container img.logo-side {{
+                width: 40%;
+                margin-bottom: 10px;
+            }}
+            .banner {{
+                justify-content: center;
+            }}
+        }}
+        </style>
 
-        # Banner a la derecha, subido un poco
-        st.markdown(
-            """
-            <div style='display:flex; justify-content:flex-end; margin-bottom:15px; margin-top:-150px;'>
-                <div style="display:flex; align-items:center; justify-content:center; padding:10px 16px; border-radius:12px; font-size:16px; font-weight:bold; background: linear-gradient(90deg, #1e3c72, #2a5298); color: #FFD700; box-shadow: 0 3px 5px rgba(0,0,0,0.2); text-align:center;">
-                    📅 Publishes twice a week / Publié deux fois par semaine ⚽🔥
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        <div class="logo-container">
+            <img class="logo-side" src="https://raw.githubusercontent.com/Ozzors/Leparinordique/main/assets/ChatGPT%20Image%20Sep%206%2C%202025%2C%2010_34_03%20PM.png" />
+            <img class="logo-main" src="{LOGO_URL}" />
+        </div>
 
-        # Contact debajo
-        st.markdown(
-            """
-            <div style='text-align: left; font-size:0.9rem; color:#6b7280; margin-bottom:1rem;'>
-                Contact: <a href='mailto:Leparinordique@parisportifquebecc.wine' style='color:#6b7280;'>Leparinordique@parisportifquebecc.wine</a>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        <div class="banner">
+            <div>📅 Publishes twice a week / Publié deux fois par semaine ⚽🔥</div>
+        </div>
+
+        <div style='text-align: center; font-size:0.9rem; color:#6b7280; margin-bottom:1rem;'>
+            Contact: <a href='mailto:Leparinordique@parisportifquebecc.wine' style='color:#6b7280;'>Leparinordique@parisportifquebecc.wine</a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 # ----------------------------- LOAD DATA ------------------------------------
 if GITHUB_TOKEN and GITHUB_REPO:
     df, gh_sha = load_editions_from_github()
