@@ -227,7 +227,7 @@ if LOGO_URL:
     with col_left:
         st.image(
             "https://raw.githubusercontent.com/Ozzors/Leparinordique/main/assets/ChatGPT%20Image%20Sep%206%2C%202025%2C%2010_34_03%20PM.png",
-            width=100,
+            width=300,
         )
     with col_right:
         # Logo centrado a la izquierda de la columna
