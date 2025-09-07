@@ -219,30 +219,26 @@ with st.sidebar:
                 else:
                     st.error("Wrong password")
 
+
 # ----------------------------- MAIN LOGO + BILINGUAL BANNER ---------------------
 if LOGO_URL:
     st.markdown(
         f"""
-        <div style="
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 10px;
-            justify-content: center;
-            margin-bottom: 15px;
-        ">
-            <div style='flex: 0 0 auto; text-align:center;'>
-                <img src="{LOGO_URL}" width="150" style="border-radius:12px;" />
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; justify-content: center; margin-bottom: 15px;">
+            <!-- Logo -->
+            <div style="flex: 0 0 auto; text-align:center;">
+                <img src="{LOGO_URL}" width="250" style="border-radius:12px;" />
             </div>
 
+            <!-- Banner -->
             <div style="
-                flex: 1 1 auto;
+                flex: 0 0 auto;
                 display:flex;
                 align-items:center;
                 justify-content:center;
-                padding:8px 12px;
+                padding:10px 16px;
                 border-radius:12px;
-                font-size:14px;
+                font-size:16px;
                 font-weight:bold;
                 background: linear-gradient(90deg, #1e3c72, #2a5298);
                 color: #FFD700;
@@ -257,8 +253,6 @@ if LOGO_URL:
             Contact: <a href="mailto:Leparinordique@parisportifquebecc.wine" style="color:#6b7280;">Leparinordique@parisportifquebecc.wine</a>
         </div>
         """,
-        unsafe_allow_html=True
-    )
 
 # ----------------------------- LOAD DATA ------------------------------------
 if GITHUB_TOKEN and GITHUB_REPO:
