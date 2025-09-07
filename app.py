@@ -222,24 +222,28 @@ with st.sidebar:
 
 # ----------------------------- MAIN LOGO + BILINGUAL BANNER ---------------------
 if LOGO_URL:
-    st.markdown(f"""
-        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; justify-content: center; margin-bottom: 15px;">
-            <!-- Logo -->
-            <div style="flex: 0 0 auto; text-align:center;">
-                <img src="{LOGO_URL}" width="250" style="border-radius:12px;" />
-            </div>
-
-            <!-- Banner -->
-            <div style="flex: 0 0 auto; display:flex; align-items:center; justify-content:center; padding:10px 16px; border-radius:12px; font-size:16px; font-weight:bold; background: linear-gradient(90deg, #1e3c72, #2a5298); color: #FFD700; box-shadow: 0 3px 5px rgba(0,0,0,0.2); text-align:center;">
+    col1, col2 = st.columns([3,2], gap="small")  # Ajusta proporciones
+    with col1:
+        st.image(LOGO_URL, width=250)
+    with col2:
+        st.markdown(
+            """
+            <div style="display:flex; align-items:center; justify-content:center; padding:10px 16px; border-radius:12px; font-size:16px; font-weight:bold; background: linear-gradient(90deg, #1e3c72, #2a5298); color: #FFD700; box-shadow: 0 3px 5px rgba(0,0,0,0.2); text-align:center;">
                 📅 Publishes twice a week / Publié deux fois par semaine ⚽🔥
             </div>
-        </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-        <div style="text-align: center; font-size:0.9rem; color:#6b7280; margin-bottom:1rem;">
-            Contact: <a href="mailto:Leparinordique@parisportifquebecc.wine" style="color:#6b7280;">Leparinordique@parisportifquebecc.wine</a>
+    # Contact debajo
+    st.markdown(
+        """
+        <div style='text-align: center; font-size:0.9rem; color:#6b7280; margin-bottom:1rem;'>
+            Contact: <a href='mailto:Leparinordique@parisportifquebecc.wine' style='color:#6b7280;'>Leparinordique@parisportifquebecc.wine</a>
         </div>
-    """, unsafe_allow_html=True)
-
+        """,
+        unsafe_allow_html=True
+    )
 # ----------------------------- LOAD DATA ------------------------------------
 if GITHUB_TOKEN and GITHUB_REPO:
     df, gh_sha = load_editions_from_github()
