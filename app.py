@@ -235,7 +235,7 @@ if LOGO_URL:
     # Banner a la derecha, subido un poco
     st.markdown(
         """
-        <div style='display:flex; justify-content:flex-end; margin-bottom:15px; margin-top:-40px;'>
+        <div style='display:flex; justify-content:flex-end; margin-bottom:15px; margin-top:-100px;'>
             <div style="display:flex; align-items:center; justify-content:center; padding:10px 16px; border-radius:12px; font-size:16px; font-weight:bold; background: linear-gradient(90deg, #1e3c72, #2a5298); color: #FFD700; box-shadow: 0 3px 5px rgba(0,0,0,0.2); text-align:center;">
                 📅 Publishes twice a week / Publié deux fois par semaine ⚽🔥
             </div>
