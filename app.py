@@ -222,9 +222,9 @@ with st.sidebar:
 
 # ----------------------------- MAIN LOGO + BILINGUAL BANNER ---------------------
 if LOGO_URL:
-    col1, col2 = st.columns([3,2], gap="small")  # Ajusta proporciones
+    col0, col1, col2 = st.columns([1,3,2], gap="small")  # col0 es espaciador
     with col1:
-        st.image(LOGO_URL, width=250)
+        st.image(LOGO_URL, width=250)  # logo centrado en su columna
     with col2:
         st.markdown(
             """
